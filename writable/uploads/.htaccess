@@ -1,0 +1,8 @@
+# Allow access to uploaded files
+<IfModule authz_core_module>
+    Require all granted
+</IfModule>
+<IfModule !authz_core_module>
+    Order allow,deny
+    Allow from all
+</IfModule>
