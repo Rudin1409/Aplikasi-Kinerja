@@ -1,0 +1,14 @@
+# --- CodeIgniter 4 Specific ---
+/writable/cache/*
+/writable/logs/*
+/writable/session/*
+/writable/uploads/*
+/writable/debugbar/*
+!/writable/**/*.html
+!/writable/**/*.gitkeep
+
+# --- Environment & Vendor ---
+.env
+/vendor/
+/node_modules/
+.DS_Store
