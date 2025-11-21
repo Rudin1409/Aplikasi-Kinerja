@@ -134,27 +134,42 @@
                         
                         <div class="mb-6">
                             <label for="password_lama" class="block text-sm font-semibold text-gray-700 mb-2">Password Saat Ini</label>
-                            <input type="password" id="password_lama" name="password_lama"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
-                                            focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="Masukkan password lama" required>
+                            <div class="relative">
+                                <input type="password" id="password_lama" name="password_lama"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
+                                                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        placeholder="Masukkan password lama" required>
+                                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 pwd-toggle" data-target="password_lama" aria-label="Tampilkan password">
+                                    <ion-icon name="eye-off-outline" class="text-lg"></ion-icon>
+                                </button>
+                            </div>
                         </div>
                         
                         <div class="mb-6">
                             <label for="password_baru" class="block text-sm font-semibold text-gray-700 mb-2">Password Baru</label>
-                            <input type="password" id="password_baru" name="password_baru"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
-                                            focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="Masukkan password baru" required>
+                            <div class="relative">
+                                <input type="password" id="password_baru" name="password_baru"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
+                                                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        placeholder="Masukkan password baru" required>
+                                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 pwd-toggle" data-target="password_baru" aria-label="Tampilkan password">
+                                    <ion-icon name="eye-off-outline" class="text-lg"></ion-icon>
+                                </button>
+                            </div>
                             <p class="mt-2 text-sm text-gray-500">Minimal 8 karakter, kombinasi huruf dan angka.</p>
                         </div>
 
                         <div class="mb-6">
                             <label for="konfirmasi_password" class="block text-sm font-semibold text-gray-700 mb-2">Konfirmasi Password Baru</label>
-                            <input type="password" id="konfirmasi_password" name="konfirmasi_password"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
-                                            focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    placeholder="Ulangi password baru" required>
+                            <div class="relative">
+                                <input type="password" id="konfirmasi_password" name="konfirmasi_password"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm 
+                                                focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                        placeholder="Ulangi password baru" required>
+                                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 pwd-toggle" data-target="konfirmasi_password" aria-label="Tampilkan password">
+                                    <ion-icon name="eye-off-outline" class="text-lg"></ion-icon>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="flex justify-start pt-4">
@@ -292,6 +307,26 @@
                     }
                 });
             }
+
+            // Initialize password toggle buttons inside Keamanan tab
+            document.querySelectorAll('.pwd-toggle').forEach(btn => {
+                btn.addEventListener('click', function(ev) {
+                    const targetId = btn.getAttribute('data-target');
+                    if (!targetId) return;
+                    const input = document.getElementById(targetId);
+                    if (!input) return;
+                    const icon = btn.querySelector('ion-icon');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        if (icon) icon.setAttribute('name', 'eye-outline');
+                        btn.setAttribute('aria-label','Sembunyikan password');
+                    } else {
+                        input.type = 'password';
+                        if (icon) icon.setAttribute('name', 'eye-off-outline');
+                        btn.setAttribute('aria-label','Tampilkan password');
+                    }
+                });
+            });
         });
     </script>
 

@@ -100,9 +100,14 @@
 
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                        <input type="password" id="password" name="password"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
-                               placeholder="••••••••" required>
+                        <div class="relative">
+                            <input type="password" id="password" name="password"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                                   placeholder="••••••••" required>
+                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 pwd-toggle" data-target="password" aria-label="Tampilkan password">
+                                <ion-icon name="eye-off-outline" class="text-lg"></ion-icon>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4">
@@ -287,6 +292,28 @@
     roleSelect.addEventListener('change', handleRoleChange);
     relasiJurusanSelect.addEventListener('change', populateProdiDropdown);
     relasiProdiSelect.addEventListener('change', updateFinalRelasiCode);
+
+    // Password toggle initialization for modal inputs
+    document.addEventListener('click', function(e) {
+        // delegate clicks on pwd-toggle buttons
+        const btn = e.target.closest('.pwd-toggle');
+        if (!btn) return;
+        const targetId = btn.getAttribute('data-target');
+        if (!targetId) return;
+        const input = document.getElementById(targetId);
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            const icon = btn.querySelector('ion-icon');
+            if (icon) icon.setAttribute('name','eye-outline');
+            btn.setAttribute('aria-label','Sembunyikan password');
+        } else {
+            input.type = 'password';
+            const icon = btn.querySelector('ion-icon');
+            if (icon) icon.setAttribute('name','eye-off-outline');
+            btn.setAttribute('aria-label','Tampilkan password');
+        }
+    });
 
 </script>
 

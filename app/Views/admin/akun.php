@@ -50,7 +50,7 @@
     </div>
 
     <div class="flex justify-center space-x-6 mt-6">
-        <a href="<?= base_url('admin/pengaturan') ?>" class="inline-flex items-center px-6 py-2 rounded bg-purple-200 hover:bg-purple-300 text-purple-900 text-sm font-medium transition">
+        <a href="<?= base_url('admin/akun-edit') ?>" class="inline-flex items-center px-6 py-2 rounded bg-purple-200 hover:bg-purple-300 text-purple-900 text-sm font-medium transition">
             <ion-icon name="create-outline" class="mr-2 text-base"></ion-icon>
             Edit Akun
         </a>

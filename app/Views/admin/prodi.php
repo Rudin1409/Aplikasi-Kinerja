@@ -55,12 +55,20 @@
                         <td class="px-4 py-3 border-b"><?= $prodi['jenjang'] ?></td>
                         <td class="px-4 py-3 border-b"><?= $prodi['nama_jurusan'] ?></td>
                         <td class="px-4 py-3 border-b text-center">
-                            <button class="text-blue-500 hover:text-blue-700 p-1" title="Edit">
-                                <ion-icon name="create-outline" class="text-xl"></ion-icon>
-                            </button>
-                            <button class="text-red-500 hover:text-red-700 p-1" title="Hapus">
-                                <ion-icon name="trash-outline" class="text-xl"></ion-icon>
-                            </button>
+                            <div class="relative inline-block text-left">
+                                <button onclick="toggleMenu('menu-<?= $prodi['id'] ?>')" class="p-2 rounded hover:bg-gray-100" aria-haspopup="true" aria-expanded="false" title="Aksi">
+                                    <ion-icon name="ellipsis-vertical" class="text-xl"></ion-icon>
+                                </button>
+                                <div id="menu-<?= $prodi['id'] ?>" class="origin-top-right absolute right-0 mt-2 w-40 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 hidden z-20">
+                                    <div class="py-1">
+                                        <a href="<?= site_url('admin/prodi-edit/' . $prodi['id']) ?>" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Edit</a>
+                                        <form action="<?= site_url('admin/prodi-delete/' . $prodi['id']) ?>" method="post" onsubmit="return confirm('Yakin ingin menghapus prodi ini?');">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Hapus</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -128,6 +136,20 @@
         </div>
     </div>
     <script>
+        function toggleMenu(id) {
+            // hide any other open menus
+            document.querySelectorAll('[id^="menu-"]') .forEach(el => { if (el.id !== id) el.classList.add('hidden'); });
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('hidden');
+        }
+        // close menus on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('[id^="menu-"]') && !e.target.closest('button[onclick^="toggleMenu("]')) {
+                document.querySelectorAll('[id^="menu-"]') .forEach(el => el.classList.add('hidden'));
+            }
+        });
+
         function openModal(modalId) {
             document.getElementById(modalId).classList.remove('hidden');
         }

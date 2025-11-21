@@ -4,545 +4,112 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\UserModel;
-
+use App\Models\JurusanModel;
+use App\Models\ProdiModel;
+use App\Models\KampusModel;
 
 class AdminController extends BaseController
 {
     public function dashboard()
     {
-        // Simulasi data capaian untuk grafik (nanti ambil dari database)
         $grafikData = [
             'labels' => ['IKU 1.1', 'IKU 1.2', 'IKU 2.1', 'IKU 2.2', 'IKU 2.3', 'IKU 3.1', 'IKU 3.2', 'IKU 3.3'],
-            'values' => [85, 78, 92, 88, 75, 90, 82, 65] // Persentase capaian tiap IKU
+            'values' => [85, 78, 92, 88, 75, 90, 82, 65]
         ];
-        
-        // Data capaian per jurusan untuk grafik batang
-        $capaianJurusan = [
-            ['nama' => 'Teknik Sipil', 'capaian' => rand(70, 95)],
-            ['nama' => 'Teknik Mesin', 'capaian' => rand(70, 95)],
-            ['nama' => 'Teknik Elektro', 'capaian' => rand(70, 95)],
-            ['nama' => 'Teknik Kimia', 'capaian' => rand(70, 95)],
-            ['nama' => 'Teknik Komputer', 'capaian' => rand(70, 95)],
-            ['nama' => 'Akuntansi', 'capaian' => rand(70, 95)],
-            ['nama' => 'Adm. Bisnis', 'capaian' => rand(70, 95)],
-            ['nama' => 'Man. Informatika', 'capaian' => rand(70, 95)],
-            ['nama' => 'Bahasa Inggris', 'capaian' => rand(70, 95)],
-            ['nama' => 'Agribisnis', 'capaian' => rand(70, 95)],
-        ];
-        
+
+        $jurusanModel = new JurusanModel();
+        $jurusan_list = $jurusanModel->getList();
+        $capaianJurusan = [];
+        foreach ($jurusan_list as $j) {
+            $capaianJurusan[] = ['nama' => $j['nama'], 'capaian' => rand(70, 95)];
+        }
+
         $data = [
             'title' => 'Dashboard Admin',
             'page'  => 'dashboard',
             'grafikData' => $grafikData,
             'capaianJurusan' => $capaianJurusan
         ];
-        
-        // Memanggil view dashboard
+
         return view('admin/dashboard', $data);
     }
 
     public function jurusan()
     {
-        // Data 10 Jurusan (Sesuai gambar Anda)
-        $daftar_jurusan = [
-            ['kode' => 'J01', 'nama' => 'Teknik Sipil'],
-            ['kode' => 'J02', 'nama' => 'Teknik Mesin'],
-            ['kode' => 'J03', 'nama' => 'Teknik Elektro'],
-            ['kode' => 'J04', 'nama' => 'Teknik Kimia'],
-            ['kode' => 'J05', 'nama' => 'Teknik Komputer'],
-            ['kode' => 'J06', 'nama' => 'Akuntansi'],
-            ['kode' => 'J07', 'nama' => 'Administrasi Bisnis'],
-            ['kode' => 'J08', 'nama' => 'Manajemen Informatika'],
-            ['kode' => 'J09', 'nama' => 'Bahasa Inggris'],
-            ['kode' => 'J10', 'nama' => 'Agribisnis']
-        ];
+        $jurusanModel = new JurusanModel();
+        $jurusan_list = $jurusanModel->getList();
 
         $data = [
             'title'        => 'Master Data Jurusan',
-            'page'         => 'jurusan', // OK
-            'jurusan_list' => $daftar_jurusan // Kirim data jurusan ke view
+            'page'         => 'jurusan',
+            'jurusan_list' => $jurusan_list,
         ];
 
         return view('admin/jurusan', $data);
     }
-    
-    // GANTI FUNGSI prodi() LAMA ANDA DENGAN YANG INI
-    public function prodi()
+
+    // Detail halaman jurusan (akun info per jurusan)
+    public function jurusanDetail($kode_jurusan = null)
     {
-        // Data 10 Jurusan (Kita perlukan untuk Dropdown di modal)
-        $daftar_jurusan_dropdown = [
-            ['kode' => 'J01', 'nama' => 'Teknik Sipil'],
-            ['kode' => 'J02', 'nama' => 'Teknik Mesin'],
-            ['kode' => 'J03', 'nama' => 'Teknik Elektro'],
-            ['kode' => 'J04', 'nama' => 'Teknik Kimia'],
-            ['kode' => 'J05', 'nama' => 'Teknik Komputer'],
-            ['kode' => 'J06', 'nama' => 'Akuntansi'],
-            ['kode' => 'J07', 'nama' => 'Administrasi Bisnis'],
-            ['kode' => 'J08', 'nama' => 'Manajemen Informatika'],
-            ['kode' => 'J09', 'nama' => 'Bahasa Inggris'],
-            ['kode' => 'J10', 'nama' => 'Agribisnis']
-        ];
-        
-        // Map Jurusan (untuk mengubah kode jadi nama di tabel)
-        $daftar_jurusan_map = [
-            'J01' => 'Teknik Sipil', 'J02' => 'Teknik Mesin', 'J03' => 'Teknik Elektro',
-            'J04' => 'Teknik Kimia', 'J05' => 'Teknik Komputer', 'J06' => 'Akuntansi',
-            'J07' => 'Administrasi Bisnis', 'J08' => 'Manajemen Informatika',
-            'J09' => 'Bahasa Inggris', 'J10' => 'Agribisnis'
-        ];
-        
-        // Database Simulasi 41 Prodi (LENGKAP)
-        $semua_prodi = [
-            ['nama_prodi' => 'Teknik Sipil', 'jenjang' => 'DIII', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Perancangan Jalan dan Jembatan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Perancangan Jalan dan Jembatan PSDKU OKU', 'jenjang' => 'DIV', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Arsitektur Bangunan Gedung', 'jenjang' => 'DIV', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Teknik Mesin', 'jenjang' => 'DIII', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Teknik Mesin Produksi dan Perawatan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Pemeliharaan Alat Berat', 'jenjang' => 'DIII', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Teknik Mesin Produksi dan Perawatan PSDKU Siak', 'jenjang' => 'DIV', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Teknik Listrik', 'jenjang' => 'DIII', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Elektro', 'jenjang' => 'DIV', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Elektronika', 'jenjang' => 'DIII', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Telekomunikasi', 'jenjang' => 'DIII', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Telekomunikasi', 'jenjang' => 'DIV', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknologi Rekayasa Instalasi Listrik', 'jenjang' => 'DIV', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Kimia', 'jenjang' => 'DIII', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknologi Kimia Industri', 'jenjang' => 'DIV', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Energi Terbarukan', 'jenjang' => 'S2', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Kimia PSDKU Siak', 'jenjang' => 'DIII', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Energi', 'jenjang' => 'DIV', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Komputer', 'jenjang' => 'DIII', 'jurusan_kode' => 'J05'],
-            ['nama_prodi' => 'Teknologi Informatika Multimedia Digital', 'jenjang' => 'DIV', 'jurusan_kode' => 'J05'],
-            ['nama_prodi' => 'Akuntansi', 'jenjang' => 'DIII', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Akuntansi Sektor Publik', 'jenjang' => 'DIV', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Akuntansi Sektor Publik PSDKU OKU', 'jenjang' => 'DIV', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Akuntansi Sektor Publik PSDKU Siak', 'jenjang' => 'DIV', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Administrasi Bisnis', 'jenjang' => 'DIII', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Manajemen Bisnis', 'jenjang' => 'DIV', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Pemasaran, Inovasi, dan Teknologi', 'jenjang' => 'S2', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Administrasi Bisnis PSDKU OKU', 'jenjang' => 'DIII', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Bisnis Digital', 'jenjang' => 'DIV', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Usaha Perjalanan Wisata', 'jenjang' => 'DIV', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Manajemen Informatika', 'jenjang' => 'DIII', 'jurusan_kode' => 'J08'],
-            ['nama_prodi' => 'Manajemen Informatika', 'jenjang' => 'DIV', 'jurusan_kode' => 'J08'],
-            ['nama_prodi' => 'Bahasa Inggris', 'jenjang' => 'DIII', 'jurusan_kode' => 'J09'],
-            ['nama_prodi' => 'Bahasa Inggris untuk Komunikasi Bisnis dan Profesional', 'jenjang' => 'DIV', 'jurusan_kode' => 'J09'],
-            ['nama_prodi' => 'Teknologi Pangan', 'jenjang' => 'DIII', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Teknologi Produksi Tanaman Perkebunan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Agribisnis Pangan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Manajemen Agribisnis', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Teknologi Akuakultur', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Teknologi Rekayasa Pangan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-        ];
-
-        // Buat data list untuk tabel (sesuai kebutuhan view)
-        $prodi_list_lengkap = [];
-        $i = 1;
-        foreach ($semua_prodi as $prodi) {
-            $prodi_list_lengkap[] = [
-                'kode_prodi'   => 'P' . str_pad($i++, 2, '0', STR_PAD_LEFT), // Buat kode prodi palsu P01, P02, dst.
-                'nama_prodi'   => $prodi['nama_prodi'],
-                'jenjang'      => $prodi['jenjang'],
-                'jurusan_kode' => $prodi['jurusan_kode'],
-                'nama_jurusan' => $daftar_jurusan_map[$prodi['jurusan_kode']] ?? 'N/A' // Ambil nama jurusan
-            ];
+        if (empty($kode_jurusan)) {
+            return redirect()->to('admin/jurusan')->with('error', 'Kode jurusan tidak diberikan.');
         }
 
-        $data = [
-            'title'        => 'Master Data Prodi',
-            'page'         => 'prodi', // OK
-            'jurusan_list' => $daftar_jurusan_dropdown, // Untuk modal
-            'prodi_list'   => $prodi_list_lengkap      // DATA LENGKAP untuk tabel
-        ];
+        $jurusanModel = new JurusanModel();
+        $prodiModel = new ProdiModel();
+        $kampusModel = new KampusModel();
 
-        return view('admin/prodi', $data);
-    }
-    
-    // GANTI FUNGSI LAMA prodiCapaian() DENGAN FUNGSI BARU INI
-    public function prodiCapaian($jurusan_kode = null)
-    {
-        if ($jurusan_kode == null) {
-            return redirect()->to('admin/jurusan-capaian');
+        $jurusan = $jurusanModel->findByKode($kode_jurusan);
+        if (!$jurusan) {
+            return redirect()->to('admin/jurusan')->with('error', 'Jurusan tidak ditemukan.');
         }
 
-        // Proteksi akses manipulasi URL untuk role jurusan & prodi
-        $session = \Config\Services::session();
-        $role = $session->get('role');
-        $relasi = $session->get('relasi_kode'); // jurusan => J03, prodi => J03|P05
-
-        if ($role === 'jurusan') {
-            // Jurusan hanya boleh melihat jurusan sendiri
-            if ($relasi !== $jurusan_kode) {
-                return redirect()->to('admin/prodi-capaian/' . $relasi)->with('error', 'Anda tidak berhak mengakses jurusan lain.');
-            }
-        } elseif ($role === 'prodi') {
-            // Role prodi tidak boleh akses halaman agregat jurusan
-            return redirect()->to('admin/iku-prodi/' . explode('|', $relasi)[0] . '/' . rawurlencode('') . '/')->with('error', 'Halaman capaian jurusan tidak tersedia untuk role prodi.');
-        }
-        // Admin & pimpinan bebas (dilewati)
-
-        // --- DATABASE SIMULASI (SESUAI GAMBAR ANDA) ---
-        
-        // 1. Daftar Jurusan (untuk ambil nama)
-        $daftar_jurusan = [
-            'J01' => 'Teknik Sipil', 'J02' => 'Teknik Mesin', 'J03' => 'Teknik Elektro',
-            'J04' => 'Teknik Kimia', 'J05' => 'Teknik Komputer', 'J06' => 'Akuntansi',
-            'J07' => 'Administrasi Bisnis', 'J08' => 'Manajemen Informatika',
-            'J09' => 'Bahasa Inggris', 'J10' => 'Agribisnis'
-        ];
-        
-        // 2. Daftar Lengkap 41 Prodi (sesuai image_def3ff.png)
-        $semua_prodi = [
-            // J01: Teknik Sipil
-            ['nama_prodi' => 'Teknik Sipil', 'jenjang' => 'DIII', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Perancangan Jalan dan Jembatan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Perancangan Jalan dan Jembatan PSDKU OKU', 'jenjang' => 'DIV', 'jurusan_kode' => 'J01'],
-            ['nama_prodi' => 'Arsitektur Bangunan Gedung', 'jenjang' => 'DIV', 'jurusan_kode' => 'J01'],
-            // J02: Teknik Mesin
-            ['nama_prodi' => 'Teknik Mesin', 'jenjang' => 'DIII', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Teknik Mesin Produksi dan Perawatan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Pemeliharaan Alat Berat', 'jenjang' => 'DIII', 'jurusan_kode' => 'J02'],
-            ['nama_prodi' => 'Teknik Mesin Produksi dan Perawatan PSDKU Siak', 'jenjang' => 'DIV', 'jurusan_kode' => 'J02'],
-            // J03: Teknik Elektro
-            ['nama_prodi' => 'Teknik Listrik', 'jenjang' => 'DIII', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Elektro', 'jenjang' => 'DIV', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Elektronika', 'jenjang' => 'DIII', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Telekomunikasi', 'jenjang' => 'DIII', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknik Telekomunikasi', 'jenjang' => 'DIV', 'jurusan_kode' => 'J03'],
-            ['nama_prodi' => 'Teknologi Rekayasa Instalasi Listrik', 'jenjang' => 'DIV', 'jurusan_kode' => 'J03'],
-            // J04: Teknik Kimia
-            ['nama_prodi' => 'Teknik Kimia', 'jenjang' => 'DIII', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknologi Kimia Industri', 'jenjang' => 'DIV', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Energi Terbarukan', 'jenjang' => 'S2', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Kimia PSDKU Siak', 'jenjang' => 'DIII', 'jurusan_kode' => 'J04'],
-            ['nama_prodi' => 'Teknik Energi', 'jenjang' => 'DIV', 'jurusan_kode' => 'J04'],
-            // J05: Teknik Komputer
-            ['nama_prodi' => 'Teknik Komputer', 'jenjang' => 'DIII', 'jurusan_kode' => 'J05'],
-            ['nama_prodi' => 'Teknologi Informatika Multimedia Digital', 'jenjang' => 'DIV', 'jurusan_kode' => 'J05'],
-            // J06: Akuntansi
-            ['nama_prodi' => 'Akuntansi', 'jenjang' => 'DIII', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Akuntansi Sektor Publik', 'jenjang' => 'DIV', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Akuntansi Sektor Publik PSDKU OKU', 'jenjang' => 'DIV', 'jurusan_kode' => 'J06'],
-            ['nama_prodi' => 'Akuntansi Sektor Publik PSDKU Siak', 'jenjang' => 'DIV', 'jurusan_kode' => 'J06'],
-            // J07: Administrasi Bisnis
-            ['nama_prodi' => 'Administrasi Bisnis', 'jenjang' => 'DIII', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Manajemen Bisnis', 'jenjang' => 'DIV', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Pemasaran, Inovasi, dan Teknologi', 'jenjang' => 'S2', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Administrasi Bisnis PSDKU OKU', 'jenjang' => 'DIII', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Bisnis Digital', 'jenjang' => 'DIV', 'jurusan_kode' => 'J07'],
-            ['nama_prodi' => 'Usaha Perjalanan Wisata', 'jenjang' => 'DIV', 'jurusan_kode' => 'J07'],
-            // J08: Manajemen Informatika
-            ['nama_prodi' => 'Manajemen Informatika', 'jenjang' => 'DIII', 'jurusan_kode' => 'J08'],
-            ['nama_prodi' => 'Manajemen Informatika', 'jenjang' => 'DIV', 'jurusan_kode' => 'J08'],
-            // J09: Bahasa Inggris
-            ['nama_prodi' => 'Bahasa Inggris', 'jenjang' => 'DIII', 'jurusan_kode' => 'J09'],
-            ['nama_prodi' => 'Bahasa Inggris untuk Komunikasi Bisnis dan Profesional', 'jenjang' => 'DIV', 'jurusan_kode' => 'J09'],
-            // J10: Agribisnis
-            ['nama_prodi' => 'Teknologi Pangan', 'jenjang' => 'DIII', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Teknologi Produksi Tanaman Perkebunan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Agribisnis Pangan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Manajemen Agribisnis', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Teknologi Akuakultur', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-            ['nama_prodi' => 'Teknologi Rekayasa Pangan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
-        ];
-
-        // 3. Filter prodi berdasarkan $jurusan_kode yang diklik
-        $prodi_list_filtered = [];
-        $total_persentase = 0;
-        foreach ($semua_prodi as $prodi) {
-            if ($prodi['jurusan_kode'] == $jurusan_kode) {
-                // 4. Tambahkan persentase acak (simulasi)
-                $persen = rand(40, 98);
-                $prodi['persentase'] = $persen;
-                $prodi_list_filtered[] = $prodi;
-                $total_persentase += $persen;
+        // Ambil daftar prodi untuk jurusan ini
+        $prodi_rows = $prodiModel->getByJurusanKode($kode_jurusan);
+        $jumlah_prodi = count($prodi_rows);
+        $nama_nama_prodi = [];
+        $sum_mahasiswa = 0;
+        $sum_dosen = 0;
+        $sum_lulusan = 0;
+        foreach ($prodi_rows as $p) {
+            $nama_nama_prodi[] = $p['nama_prodi'];
+            // gunakan field jumlah_mahasiswa_aktif dan jumlah_dosen bila ada
+            $sum_mahasiswa += (int) ($p['jumlah_mahasiswa_aktif'] ?? 0);
+            $sum_dosen += (int) ($p['jumlah_dosen'] ?? 0);
+            // jika tabel prodi memiliki kolom jumlah_lulusan_satu_tahun, gunakan itu
+            if (isset($p['jumlah_lulusan_satu_tahun'])) {
+                $sum_lulusan += (int) $p['jumlah_lulusan_satu_tahun'];
             }
         }
 
-        // 5. Hitung data untuk 2 kartu ringkasan
-        $total_prodi = count($prodi_list_filtered);
-        $rata_rata_capaian = ($total_prodi > 0) ? ($total_persentase / $total_prodi) : 0;
-
-        // 6. Siapkan data untuk dikirim ke View
-        $data = [
-            'title'             => 'Laporan Capaian Prodi',
-            'page'              => 'jurusan',
-            'nama_jurusan'      => $daftar_jurusan[$jurusan_kode] ?? 'Jurusan Tidak Ditemukan',
-            'prodi_list'        => $prodi_list_filtered,
-            'total_prodi'       => $total_prodi,
-            'rata_rata_capaian' => number_format($rata_rata_capaian, 1),
-            'jurusan_kode'      => $jurusan_kode
-        ];
-
-        return view('admin/prodi_capaian', $data);
-    }
-
-    // GANTI FUNGSI LAMA JURUSANCAPAIAN() DENGAN INI
-    public function jurusanCapaian()
-    {
-        // Data 10 Jurusan (Kita ambil lagi)
-        $daftar_jurusan = [
-            ['kode' => 'J01', 'nama' => 'Teknik Sipil'],
-            ['kode' => 'J02', 'nama' => 'Teknik Mesin'],
-            ['kode' => 'J03', 'nama' => 'Teknik Elektro'],
-            ['kode' => 'J04', 'nama' => 'Teknik Kimia'],
-            ['kode' => 'J05', 'nama' => 'Teknik Komputer'],
-            ['kode' => 'J06', 'nama' => 'Akuntansi'],
-            ['kode' => 'J07', 'nama' => 'Administrasi Bisnis'],
-            ['kode' => 'J08', 'nama' => 'Manajemen Informatika'],
-            ['kode' => 'J09', 'nama' => 'Bahasa Inggris'],
-            ['kode' => 'J10', 'nama' => 'Agribisnis']
-        ];
-        
-        // SIMULASI DATA PERSENTASE (Nanti ini dari hasil kalkulasi IKU)
-        $total_persentase = 0;
-        foreach ($daftar_jurusan as &$jurusan) { // Pakai '&' untuk memodifikasi array aslinya
-            $persen = rand(30, 95); // Angka acak
-            $jurusan['persentase'] = $persen;
-            $total_persentase += $persen; // Tambahkan ke total
+        // Jika tidak ada kolom per-prodi untuk lulusan, coba ambil dari kampus (fallback)
+        $kampus_row = null;
+        try {
+            $kampus_row = $kampusModel->getInfo();
+        } catch (\Exception $e) {
+            $kampus_row = null;
+            log_message('error', 'KampusModel->getInfo() failed in jurusanDetail: ' . $e->getMessage());
         }
 
-        $total_jurusan = count($daftar_jurusan);
-        // Hitung rata-rata, hindari pembagian dengan nol
-        $rata_rata_capaian = ($total_jurusan > 0) ? ($total_persentase / $total_jurusan) : 0;
-
-        $data = [
-            'title'             => 'Laporan Capaian Jurusan',
-            
-            // ===== PERBAIKAN #2 DI SINI =====
-            'page'              => 'jurusan', // Diubah dari 'dashboard'
-            
-            'jurusan_list'      => $daftar_jurusan,
-            'total_jurusan'     => $total_jurusan, // Data baru untuk card
-            'rata_rata_capaian' => number_format($rata_rata_capaian, 1) // Data baru untuk card
-        ];
-
-        return view('admin/jurusan_capaian', $data);
-    }
-    
-    // ... (setelah fungsi prodiCapaian() ... )
-
-    // FUNGSI BARU UNTUK HALAMAN DETAIL IKU PER PRODI
-    public function ikuProdi($jurusan_kode = null, $nama_prodi_encoded = null, $jenjang = null)
-    {
-        if ($jurusan_kode == null || $nama_prodi_encoded == null || $jenjang == null) {
-            return redirect()->to('admin/dashboard');
+        if ($sum_lulusan === 0) {
+            $sum_lulusan = $kampus_row ? (int) ($kampus_row['jumlah_lulusan_satu_tahun'] ?? 0) : 0;
         }
 
-        // 1. Ambil nama prodi & jurusan
-        $nama_prodi = rawurldecode($nama_prodi_encoded);
-        $daftar_jurusan = [
-            'J01' => 'Teknik Sipil', 'J02' => 'Teknik Mesin', 'J03' => 'Teknik Elektro',
-            'J04' => 'Teknik Kimia', 'J05' => 'Teknik Komputer', 'J06' => 'Akuntansi',
-            'J07' => 'Administrasi Bisnis', 'J08' => 'Manajemen Informatika',
-            'J09' => 'Bahasa Inggris', 'J10' => 'Agribisnis'
-        ];
-        $nama_jurusan = $daftar_jurusan[$jurusan_kode] ?? 'Jurusan';
-
-        // 2. Siapkan data 8 IKU (Sesuai data awal Anda)
-        $iku_data = [
-            [
-                'kode' => 'IKU 1.1',
-                'nama' => 'Lulusan Mendapat Pekerjaan/Studi/Wirausaha',
-                'persentase' => rand(70, 95),
-                'icon' => 'briefcase-outline'
-            ],
-            [
-                'kode' => 'IKU 1.2',
-                'nama' => 'Mahasiswa Mendapat Pengalaman di Luar Prodi',
-                'persentase' => rand(70, 95),
-                'icon' => 'school-outline'
-            ],
-            [
-                'kode' => 'IKU 2.1',
-                'nama' => 'Kegiatan Dosen di Luar Kampus',
-                'persentase' => rand(70, 95),
-                'icon' => 'walk-outline'
-            ],
-            [
-                'kode' => 'IKU 2.2',
-                'nama' => 'Kualifikasi Dosen & Praktisi Mengajar',
-                'persentase' => rand(70, 95),
-                'icon' => 'sparkles-outline'
-            ],
-            [
-                'kode' => 'IKU 2.3',
-                'nama' => 'Hasil Karya Dosen (Rekognisi/Diterapkan)',
-                'persentase' => rand(70, 95),
-                'icon' => 'trophy-outline'
-            ],
-            [
-                'kode' => 'IKU 3.1',
-                'nama' => 'Kerjasama Program Studi dengan Mitra',
-                'persentase' => rand(70, 95),
-                'icon' => 'git-network-outline'
-            ],
-            [
-                'kode' => 'IKU 3.2',
-                'nama' => 'Metode Pembelajaran (Case/Project Based)',
-                'persentase' => rand(70, 95),
-                'icon' => 'bulb-outline'
-            ],
-            [
-                'kode' => 'IKU 3.3',
-                'nama' => 'Akreditasi Internasional Program Studi',
-                'persentase' => rand(10, 30), // (Simulasi rendah)
-                'icon' => 'globe-outline'
-            ],
-        ];
-
-        // 3. Siapkan data untuk dikirim ke View
         $data = [
-            'title'        => 'Capaian IKU Prodi',
-            
-            // Set page = 'dashboard' karena ini IS dashboard prodi
-            // (Bukan halaman master data IKU)
-            'page'         => 'dashboard',
-            
-            'tahun'        => '2025', // (Data statis untuk filter)
-            'jurusan_kode' => $jurusan_kode,
-            'nama_jurusan' => $nama_jurusan,
-            'nama_prodi'   => $nama_prodi,
-            'jenjang'      => $jenjang,
-            'iku_data'     => $iku_data
+            'title' => 'Detail Jurusan',
+            'page' => 'jurusan',
+            'jurusan_kode' => $kode_jurusan,
+            'nama_jurusan' => $jurusan['nama_jurusan'] ?? $jurusan['kode_jurusan'],
+            'kampus_nama' => $kampus_row['nama'] ?? 'Politeknik Negeri Sriwijaya',
+            'jumlah_prodi' => $jumlah_prodi,
+            'nama_nama_prodi' => $nama_nama_prodi,
+            'lokasi' => $jurusan['lokasi'] ?? '-',
+            'jumlah_mahasiswa_aktif' => $sum_mahasiswa,
+            'jumlah_lulusan_satu_tahun' => $sum_lulusan,
+            'jumlah_dosen' => $sum_dosen
         ];
 
-        return view('admin/iku_prodi', $data);
-    }
-    
-    // FUNGSI BARU UNTUK HALAMAN DETAIL SETIAP IKU
-    public function ikuDetail($iku_code = null, $jurusan_kode = null, $nama_prodi_encoded = null, $jenjang = null)
-    {
-        if (!$iku_code || !$jurusan_kode || !$nama_prodi_encoded || !$jenjang) {
-            return redirect()->back();
-        }
-
-        // 1. Siapkan data dasar
-        $nama_prodi = rawurldecode($nama_prodi_encoded);
-        $back_url = base_url("admin/iku-prodi/$jurusan_kode/$nama_prodi_encoded/$jenjang");
-        
-        $data = [
-            'title'             => 'Detail IKU',
-            
-            // ===== PERBAIKAN #4 DI SINI =====
-            'page'              => 'jurusan', // Diubah dari 'dashboard'
-            
-            'back_url'          => $back_url,
-            'nama_prodi'        => $nama_prodi,
-            'jenjang'           => $jenjang,
-            'triwulan_text'     => 'TW 1 (Januari - Maret 2025)', // (Simulasi, nanti bisa diambil dari ?tw=1)
-            'iku_title'         => '',
-            'tambah_button_text' => 'Tambah Data',
-            'table_headers'     => [], // Kunci: Kolom tabel dinamis
-            'data_list'         => []  // Kunci: Isi tabel dinamis
-        ];
-
-        // 2. LOGIKA DINAMIS: Sesuaikan data berdasarkan $iku_code
-        switch ($iku_code) {
-            case '1.1':
-                $data['iku_title'] = 'IKU 1.1: Capaian Lulusan';
-                $data['tambah_button_text'] = 'Tambah Data Lulusan';
-                $data['table_headers'] = [
-                    // 'key_data' => 'Nama Kolom di Tabel'
-                    'nama_mhs' => 'Nama Lulusan',
-                    'nim'      => 'NIM',
-                    'status'   => 'Status (Bekerja/Studi/Wirausaha)',
-                    'bukti'    => 'Bukti (SK/NIB)'
-                ];
-                // Data simulasi (nanti dari database)
-                $data['data_list'] = [
-                    ['nama_mhs' => 'Ahmad Budi', 'nim' => '0623...1', 'status' => 'Bekerja', 'bukti' => 'SK.pdf'],
-                    ['nama_mhs' => 'Citra Lestari', 'nim' => '0623...2', 'status' => 'Wirausaha', 'bukti' => 'NIB.pdf'],
-                ];
-                break;
-            
-            case '1.2':
-                $data['iku_title'] = 'IKU 1.2: Kegiatan & Prestasi Mahasiswa';
-                $data['tambah_button_text'] = 'Tambah Kegiatan/Prestasi';
-                $data['table_headers'] = [
-                    'nama_mhs' => 'Nama Mahasiswa',
-                    'nim'      => 'NIM',
-                    'kegiatan' => 'Nama Kegiatan',
-                    'kategori' => 'Kategori (Magang/Prestasi/dll)',
-                    'bukti'    => 'Bukti (SK/Sertifikat)'
-                ];
-                $data['data_list'] = [
-                    ['nama_mhs' => 'Doni Saputra', 'nim' => '0624...1', 'kegiatan' => 'Magang di PT. ABC', 'kategori' => 'Magang', 'bukti' => 'Sertif.pdf'],
-                ];
-                break;
-
-            case '2.1':
-                $data['iku_title'] = 'IKU 2.1: Kegiatan Dosen';
-                $data['tambah_button_text'] = 'Tambah Kegiatan Dosen';
-                $data['table_headers'] = [
-                    'nama_dosen' => 'Nama Dosen',
-                    'kegiatan' => 'Nama Kegiatan',
-                    'kategori' => 'Kategori (Tridharma/Praktisi/Membimbing)',
-                    'bukti'    => 'Bukti (SK/Surat Tugas)'
-                ];
-                $data['data_list'] = [
-                    ['nama_dosen' => 'Prof. Dr. Dosen A', 'kegiatan' => 'Mengajar di PT. X', 'kategori' => 'Praktisi', 'bukti' => 'SK.pdf'],
-                ];
-                break;
-            
-            // (Anda bisa tambahkan case untuk IKU 2.2, 2.3, 3.1, 3.2, 3.3 di sini)
-
-            default:
-                $data['iku_title'] = "IKU $iku_code (Belum disetup)";
-                $data['table_headers'] = ['info' => 'Informasi'];
-                $data['data_list'] = [['info' => 'Halaman detail untuk IKU ini belum dikonfigurasi di AdminController.']];
-                break;
-        }
-
-        // 3. Tampilkan view dengan data yang sudah disesuaikan
-        return view('admin/iku_detail', $data);
-    }
-    
-    // GANTI FUNGSI AKUN() LAMA DENGAN INI
-    public function akun()
-    {
-        // Data kampus dasar
-        $data_kampus = [
-            'nama'   => 'Politeknik Negeri Sriwijaya',
-            'alamat' => 'Jl. Srijaya Negara, Bukit Besar, Palembang 30139',
-            'website'=> 'https://www.polsri.ac.id'
-        ];
-
-        // Daftar jurusan (urut & nama sesuai screenshot Anda)
-        $jurusan_list = [
-            'Teknik Sipil',
-            'Teknik Mesin',
-            'Teknik Elektro',
-            'Teknik Kimia',
-            'Teknik Komputer',
-            'Administrasi Bisnis',
-            'Akuntansi',
-            'Bahasa dan Pariwisata',
-            'Manajemen Informatika',
-            'Rekayasa Teknologi dan Bisnis Pangan'
-        ];
-
-        // Angka statistik (sementara hardcode; nanti bisa diambil dari DB)
-        $jumlah_jurusan                 = count($jurusan_list); // 10
-        $jumlah_prodi                   = 41;                   // Total prodi lengkap
-        $jumlah_mahasiswa_aktif         = 3100;                 // Placeholder
-        $jumlah_lulusan_satu_tahun      = 3000;                 // Placeholder
-        $jumlah_dosen                   = 500;                  // Placeholder
-
-        $data = [
-            'title'                          => 'Informasi Kampus',
-            'page'                           => 'akun',
-            'kampus_data'                    => $data_kampus,
-            'jurusan_list'                   => $jurusan_list,
-            'jumlah_jurusan'                 => $jumlah_jurusan,
-            'jumlah_prodi'                   => $jumlah_prodi,
-            'jumlah_mahasiswa_aktif'         => $jumlah_mahasiswa_aktif,
-            'jumlah_lulusan_satu_tahun'      => $jumlah_lulusan_satu_tahun,
-            'jumlah_dosen'                   => $jumlah_dosen
-        ];
-
-        return view('admin/akun', $data);
+        return view('admin/jurusan_detail', $data);
     }
     
     // FUNGSI BARU UNTUK HALAMAN PANDUAN
@@ -572,14 +139,9 @@ class AdminController extends BaseController
     {
         $model = new UserModel();
 
-        // 1. Data Jurusan (untuk dropdown)
-        $daftar_jurusan = [
-            ['kode' => 'J01', 'nama' => 'Teknik Sipil'], ['kode' => 'J02', 'nama' => 'Teknik Mesin'], 
-            ['kode' => 'J03', 'nama' => 'Teknik Elektro'], ['kode' => 'J04', 'nama' => 'Teknik Kimia'],
-            ['kode' => 'J05', 'nama' => 'Teknik Komputer'], ['kode' => 'J06', 'nama' => 'Akuntansi'],
-            ['kode' => 'J07', 'nama' => 'Administrasi Bisnis'], ['kode' => 'J08', 'nama' => 'Manajemen Informatika'],
-            ['kode' => 'J09', 'nama' => 'Bahasa Inggris'], ['kode' => 'J10', 'nama' => 'Agribisnis']
-        ];
+        // 1. Data Jurusan (untuk dropdown) dari database
+        $jurusanModel = new JurusanModel();
+        $daftar_jurusan = $jurusanModel->getList();
         
         // 2. Ambil prodi lengkap dari fungsi yang sudah ada
         $prodi_list = $this->_getCompleteProdiList();
@@ -878,15 +440,39 @@ class AdminController extends BaseController
     // Fungsi untuk menyimpan data prodi (dari route 'prodi/save')
     public function saveProdi()
     {
-        // Nanti kita isi logika simpan ke database di sini
-        // Untuk sekarang, kita kembalikan saja ke halaman prodi
-        
-        // Ambil data (contoh)
-        $nama_prodi = $this->request->getPost('nama_prodi');
-        echo "Menyimpan data prodi: " . $nama_prodi;
-        
-        // Arahkan kembali ke halaman prodi
-        return redirect()->to('admin/prodi');
+        $post = $this->request->getPost();
+
+        $kode_prodi = trim($post['kode_prodi'] ?? '');
+        $nama_prodi = trim($post['nama_prodi'] ?? '');
+        $jenjang = trim($post['jenjang'] ?? '');
+        $jurusan_kode = trim($post['jurusan_id'] ?? ''); // form sends jurusan code
+
+        if (empty($kode_prodi) || empty($nama_prodi) || empty($jenjang) || empty($jurusan_kode)) {
+            return redirect()->to('admin/prodi')->with('error', 'Semua field wajib diisi.');
+        }
+
+        $jurusanModel = new JurusanModel();
+        $jurusan = $jurusanModel->findByKode($jurusan_kode);
+        if (!$jurusan) {
+            return redirect()->to('admin/prodi')->with('error', 'Jurusan tidak ditemukan.');
+        }
+
+        $prodiModel = new ProdiModel();
+        $data = [
+            'jurusan_id' => $jurusan['id'],
+            'kode_prodi' => $kode_prodi,
+            'nama_prodi' => $nama_prodi,
+            'jenjang'    => $jenjang,
+            'status'     => 'active'
+        ];
+
+        try {
+            $prodiModel->insert($data);
+        } catch (\Exception $e) {
+            return redirect()->to('admin/prodi')->with('error', 'Gagal menyimpan prodi: ' . $e->getMessage());
+        }
+
+        return redirect()->to('admin/prodi')->with('success', 'Prodi berhasil disimpan.');
     }
 
     // FUNGSI BARU UNTUK REDIRECT LOGIN PRODI (INI ADALAH LANDING PAGE PRODI)
@@ -935,4 +521,440 @@ class AdminController extends BaseController
         return redirect()->to('admin/iku-prodi/' . $jurusan_kode . '/' . rawurlencode($nama_prodi) . '/' . $jenjang);
     }
     
+    // Tampilkan halaman IKU untuk sebuah prodi
+    public function ikuProdi($jurusan_kode = null, $nama_prodi = null, $jenjang = null)
+    {
+        if (!$jurusan_kode || !$nama_prodi || !$jenjang) {
+            return redirect()->to('admin/prodi')->with('error', 'Parameter prodi tidak lengkap.');
+        }
+
+        $jurusanModel = new JurusanModel();
+        $prodiModel = new ProdiModel();
+
+        $map = $jurusanModel->getMap();
+        $nama_jurusan = $map[$jurusan_kode] ?? $jurusan_kode;
+
+        // Cari prodi berdasarkan nama+jenjang+jurusan_kode
+        $candidates = $prodiModel->getByJurusanKode($jurusan_kode);
+        $found = null;
+        foreach ($candidates as $p) {
+            if (strcasecmp($p['nama_prodi'], rawurldecode($nama_prodi)) === 0 && strcasecmp($p['jenjang'], $jenjang) === 0) {
+                $found = $p; break;
+            }
+        }
+        if (!$found && !empty($candidates)) {
+            $found = $candidates[0];
+        }
+
+        // Gunakan nilai IKU tetap sesuai screenshot contoh (agar total sesuai permintaan)
+        $iku_data = [
+            ['kode'=>'IKU 1.1','nama'=>'Lulusan Mendapat Pekerjaan/Studi/Wirausaha','persentase'=>73,'icon'=>'trophy-outline'],
+            ['kode'=>'IKU 1.2','nama'=>'Mahasiswa Mendapat Pengalaman di Luar Prodi','persentase'=>80,'icon'=>'school-outline'],
+            ['kode'=>'IKU 2.1','nama'=>'Kegiatan Dosen di Luar Kampus','persentase'=>90,'icon'=>'person-outline'],
+            ['kode'=>'IKU 2.2','nama'=>'Kualifikasi Dosen & Praktisi Mengajar','persentase'=>84,'icon'=>'sparkles-outline'],
+            ['kode'=>'IKU 2.3','nama'=>'Hasil Karya Dosen (Rekognisi/Diterapkan)','persentase'=>76,'icon'=>'trophy-outline'],
+            ['kode'=>'IKU 3.1','nama'=>'Kerjasama Program Studi dengan Mitra','persentase'=>93,'icon'=>'people-circle-outline'],
+            ['kode'=>'IKU 3.2','nama'=>'Metode Pembelajaran (Case/Project Based)','persentase'=>72,'icon'=>'bulb-outline'],
+            ['kode'=>'IKU 3.3','nama'=>'Akreditasi Internasional Program Studi','persentase'=>17,'icon'=>'globe-outline'],
+        ];
+
+        $data = [
+            'title' => 'IKU Prodi',
+            'page'  => 'iku-prodi',
+            'nama_jurusan' => $nama_jurusan,
+            'nama_prodi' => rawurldecode($nama_prodi),
+            'jenjang' => $jenjang,
+            'jurusan_kode' => $jurusan_kode,
+            'iku_data' => $iku_data,
+            'prodi' => $found
+        ];
+
+        return view('admin/iku_prodi', $data);
+    }
+
+    // Tampilkan detail IKU
+    public function ikuDetail($iku_code = null, $jurusan_kode = null, $nama_prodi = null, $jenjang = null)
+    {
+        if (!$iku_code || !$jurusan_kode || !$nama_prodi || !$jenjang) {
+            return redirect()->to('admin/dashboard')->with('error', 'Parameter IKU tidak lengkap.');
+        }
+
+        $jurusanModel = new JurusanModel();
+        $map = $jurusanModel->getMap();
+        $nama_jurusan = $map[$jurusan_kode] ?? $jurusan_kode;
+
+        // Simulasi detail data
+        $detail = [
+            'iku' => rawurldecode($iku_code),
+            'deskripsi' => 'Deskripsi/penjelasan untuk ' . rawurldecode($iku_code) . '.',
+            'nilai' => rand(40,98),
+            'target' => 85,
+            'catatan' => 'Data masih simulasi karena belum ada penyimpanan IKU di database.'
+        ];
+
+        // Prepare view-specific data dependent on IKU code
+        $decoded_iku = rawurldecode($iku_code);
+        // Map some IKU codes to human-friendly titles (fall back to kode itself)
+        $iku_titles = [
+            'IKU 1.1' => 'IKU 1.1: Capaian Lulusan',
+            'IKU 1.2' => 'IKU 1.2: Pengalaman Mahasiswa di Luar Prodi',
+            'IKU 2.1' => 'IKU 2.1: Kegiatan Dosen di Luar Kampus',
+            'IKU 2.2' => 'IKU 2.2: Kualifikasi Dosen & Praktisi',
+            'IKU 2.3' => 'IKU 2.3: Hasil Karya Dosen',
+            'IKU 3.1' => 'IKU 3.1: Kerjasama Program Studi',
+            'IKU 3.2' => 'IKU 3.2: Metode Pembelajaran',
+            'IKU 3.3' => 'IKU 3.3: Akreditasi Internasional',
+        ];
+
+        $iku_title = $iku_titles[$decoded_iku] ?? $decoded_iku;
+
+        // Default triwulan text (could be made dynamic)
+        $triwulan_text = 'TW 1 (Januari - Maret 2025)';
+
+        // Table headers and sample data tailored for IKU 1.1 (Capaian Lulusan)
+        if (stripos($decoded_iku, '1.1') !== false) {
+            $table_headers = [
+                'nama_lulusan' => 'NAMA LULUSAN',
+                'nim' => 'NIM',
+                'status' => 'STATUS (BEKERJA/STUDI/WIRAUSAHA)',
+                'bukti' => 'BUKTI (SK/NIB)'
+            ];
+
+            $data_list = [
+                ['nama_lulusan' => 'Ahmad Budi', 'nim' => '0623...1', 'status' => 'Bekerja', 'bukti' => 'SK.pdf'],
+                ['nama_lulusan' => 'Citra Lestari', 'nim' => '0623...2', 'status' => 'Wirausaha', 'bukti' => 'NIB.pdf'],
+            ];
+        } else {
+            // Generic headers for other IKU types
+            $table_headers = [
+                'keterangan' => 'Keterangan',
+                'nilai' => 'Nilai',
+                'bukti' => 'Bukti'
+            ];
+            $data_list = [
+                ['keterangan' => 'Contoh data 1', 'nilai' => '75%', 'bukti' => '-'],
+                ['keterangan' => 'Contoh data 2', 'nilai' => '82%', 'bukti' => '-'],
+            ];
+        }
+
+        $data = [
+            'title' => $iku_title,
+            'page' => 'iku-detail',
+            'iku_detail' => $detail,
+            'nama_jurusan' => $nama_jurusan,
+            'nama_prodi' => rawurldecode($nama_prodi),
+            'jenjang' => $jenjang,
+            'jurusan_kode' => $jurusan_kode,
+            'iku_title' => $iku_title,
+            'triwulan_text' => $triwulan_text,
+            'table_headers' => $table_headers,
+            'data_list' => $data_list,
+            'tambah_button_text' => 'Tambah Data Lulusan',
+            'back_url' => site_url('admin/iku-prodi/' . $jurusan_kode . '/' . rawurlencode($nama_prodi) . '/' . $jenjang)
+        ];
+
+        return view('admin/iku_detail', $data);
+    }
+    // Halaman laporan capaian per jurusan
+    public function jurusanCapaian()
+    {
+        $jurusanModel = new JurusanModel();
+        $rows = $jurusanModel->getList();
+
+        $jurusan_list = [];
+        $total = 0;
+        foreach ($rows as $r) {
+            $pers = rand(30, 95);
+            $jurusan_list[] = [
+                'kode' => $r['kode'],
+                'nama' => $r['nama'],
+                'persentase' => $pers
+            ];
+            $total += $pers;
+        }
+
+        $total_jurusan = count($jurusan_list);
+        $rata_rata = $total_jurusan ? round($total / $total_jurusan, 1) : 0;
+
+        $data = [
+            'title' => 'Laporan Capaian Jurusan',
+            'page'  => 'jurusan',
+            'jurusan_list' => $jurusan_list,
+            'total_jurusan' => $total_jurusan,
+            'rata_rata_capaian' => $rata_rata
+        ];
+
+        return view('admin/jurusan_capaian', $data);
+    }
+
+    // Halaman laporan capaian per prodi untuk sebuah jurusan
+    public function prodiCapaian($jurusan_kode = null)
+    {
+        if (empty($jurusan_kode)) {
+            return redirect()->to('admin/jurusan-capaian')->with('error', 'Kode jurusan tidak diberikan.');
+        }
+
+        $prodiModel = new ProdiModel();
+        $jurusanModel = new JurusanModel();
+
+        $prodi_rows = $prodiModel->getByJurusanKode($jurusan_kode);
+        $prodi_list = [];
+        $total = 0;
+        foreach ($prodi_rows as $p) {
+            $pers = rand(40, 98);
+            $p['persentase'] = $pers;
+            $prodi_list[] = $p;
+            $total += $pers;
+        }
+
+        $total_prodi = count($prodi_list);
+        $rata = $total_prodi ? round($total / $total_prodi, 1) : 0;
+
+        // Nama jurusan
+        $map = $jurusanModel->getMap();
+        $nama_jurusan = isset($map[$jurusan_kode]) ? $map[$jurusan_kode] : $jurusan_kode;
+
+        $data = [
+            'title' => 'Laporan Capaian Prodi',
+            'page'  => 'jurusan',
+            'nama_jurusan' => $nama_jurusan,
+            'jurusan_kode' => $jurusan_kode,
+            'prodi_list' => $prodi_list,
+            'total_prodi' => $total_prodi,
+            'rata_rata_capaian' => $rata
+        ];
+
+        return view('admin/prodi_capaian', $data);
+    }
+
+    // Halaman master data prodi
+    public function prodi()
+    {
+        $jurusanModel = new JurusanModel();
+        $prodiModel = new ProdiModel();
+
+        $jurusan_list = $jurusanModel->getList();
+        $prodi_list = $prodiModel->getAllWithJurusan();
+
+        $data = [
+            'title' => 'Master Data Prodi',
+            'page'  => 'prodi',
+            'jurusan_list' => $jurusan_list,
+            'prodi_list' => $prodi_list
+        ];
+
+        return view('admin/prodi', $data);
+    }
+
+    // Tampilkan halaman edit prodi (full form)
+    public function prodiEdit($id = null)
+    {
+        if (empty($id)) {
+            return redirect()->to('admin/prodi')->with('error', 'ID Prodi tidak diberikan.');
+        }
+        $prodiModel = new ProdiModel();
+        $jurusanModel = new JurusanModel();
+
+        $prodi = $prodiModel->find($id);
+        if (!$prodi) {
+            return redirect()->to('admin/prodi')->with('error', 'Prodi tidak ditemukan.');
+        }
+
+        $data = [
+            'title' => 'Edit Prodi',
+            'page' => 'prodi',
+            'prodi' => $prodi,
+            'jurusan_list' => $jurusanModel->getList()
+        ];
+
+        return view('admin/prodi_edit', $data);
+    }
+
+    // Proses update prodi
+    public function prodiUpdate($id = null)
+    {
+        if (empty($id)) {
+            return redirect()->to('admin/prodi')->with('error', 'ID Prodi tidak diberikan.');
+        }
+        $prodiModel = new ProdiModel();
+        $jurusanModel = new JurusanModel();
+
+        $post = $this->request->getPost();
+
+        // Ambil existing prodi
+        $existing = $prodiModel->find($id);
+        if (!$existing) {
+            return redirect()->to('admin/prodi')->with('error', 'Prodi tidak ditemukan.');
+        }
+
+        // Jangan izinkan ubah kode_prodi
+        $update = [
+            'jurusan_id' => null,
+            'nama_prodi' => trim($post['nama_prodi'] ?? $existing['nama_prodi']),
+            'jenjang' => trim($post['jenjang'] ?? $existing['jenjang']),
+            'lokasi' => trim($post['lokasi'] ?? $existing['lokasi']),
+            'status' => $post['status'] ?? ($existing['status'] ?? 'active'),
+        ];
+
+        // Jika user memilih jurusan kode di form, cari id jurusan
+        if (!empty($post['jurusan_id'])) {
+            $jur = $jurusanModel->findByKode($post['jurusan_id']);
+            if ($jur) {
+                $update['jurusan_id'] = $jur['id'];
+            }
+        } else {
+            // fallback ke existing jurusan_id
+            $update['jurusan_id'] = $existing['jurusan_id'];
+        }
+
+        try {
+            $prodiModel->update($id, $update);
+        } catch (\Exception $e) {
+            return redirect()->to('admin/prodi')->with('error', 'Gagal memperbarui prodi: ' . $e->getMessage());
+        }
+
+        return redirect()->to('admin/prodi')->with('success', 'Prodi berhasil diperbarui.');
+    }
+
+    // Hapus prodi
+    public function prodiDelete($id = null)
+    {
+        if (empty($id)) {
+            return redirect()->to('admin/prodi')->with('error', 'ID Prodi tidak diberikan.');
+        }
+        $prodiModel = new ProdiModel();
+        $existing = $prodiModel->find($id);
+        if (!$existing) {
+            return redirect()->to('admin/prodi')->with('error', 'Prodi tidak ditemukan.');
+        }
+        try {
+            $prodiModel->delete($id);
+        } catch (\Exception $e) {
+            return redirect()->to('admin/prodi')->with('error', 'Gagal menghapus prodi: ' . $e->getMessage());
+        }
+        return redirect()->to('admin/prodi')->with('success', 'Prodi berhasil dihapus.');
+    }
+
+    // Halaman akun / informasi kampus
+    public function akun()
+    {
+        $jurusanModel = new JurusanModel();
+        $prodiModel = new ProdiModel();
+        $kampusModel = new KampusModel();
+
+        $jurusan_rows = $jurusanModel->getList();
+        $jurusan_names = array_map(function($r){ return $r['nama']; }, $jurusan_rows);
+        $prodi_rows = $prodiModel->getAllWithJurusan();
+        // Compute totals from `prodi` table (if values exist there)
+        $sum_mahasiswa = 0;
+        $sum_dosen = 0;
+        try {
+            $qb = $prodiModel->db->table('prodi');
+            $qb->selectSum('jumlah_mahasiswa_aktif', 'sum_mahasiswa');
+            $qb->selectSum('jumlah_dosen', 'sum_dosen');
+            $row = $qb->get()->getRowArray();
+            $sum_mahasiswa = (int) ($row['sum_mahasiswa'] ?? 0);
+            $sum_dosen = (int) ($row['sum_dosen'] ?? 0);
+        } catch (\Exception $e) {
+            log_message('error', 'Failed to aggregate prodi totals: ' . $e->getMessage());
+            $sum_mahasiswa = 0;
+            $sum_dosen = 0;
+        }
+
+        // Try to fetch kampus info from DB for campus name and lulusan count;
+        // if kampus table missing, fall back to defaults but still use prodi sums when available.
+        $kampus_row = null;
+        try {
+            $kampus_row = $kampusModel->getInfo();
+        } catch (\Exception $e) {
+            $kampus_row = null;
+            log_message('error', 'KampusModel->getInfo() failed: ' . $e->getMessage());
+        }
+
+        if ($kampus_row) {
+            $kampus = [ 'nama' => $kampus_row['nama'] ];
+            // Prefer aggregated prodi sums for mahasiswa and dosen when present (non-zero)
+            $jumlah_mahasiswa_aktif = $sum_mahasiswa > 0 ? $sum_mahasiswa : (int) ($kampus_row['jumlah_mahasiswa_aktif'] ?? 0);
+            $jumlah_dosen = $sum_dosen > 0 ? $sum_dosen : (int) ($kampus_row['jumlah_dosen'] ?? 0);
+            $jumlah_lulusan_satu_tahun = (int) ($kampus_row['jumlah_lulusan_satu_tahun'] ?? 0);
+        } else {
+            $kampus = [ 'nama' => 'Politeknik Negeri Sriwijaya' ];
+            $jumlah_mahasiswa_aktif = $sum_mahasiswa > 0 ? $sum_mahasiswa : 3100;
+            $jumlah_lulusan_satu_tahun = 3000;
+            $jumlah_dosen = $sum_dosen > 0 ? $sum_dosen : 500;
+        }
+
+        $data = [
+            'title' => 'Informasi Kampus',
+            'page' => 'akun',
+            'kampus_data' => $kampus,
+            'jurusan_list' => $jurusan_names,
+            'jumlah_jurusan' => count($jurusan_names),
+            'jumlah_prodi' => count($prodi_rows),
+            'jumlah_mahasiswa_aktif' => $jumlah_mahasiswa_aktif,
+            'jumlah_lulusan_satu_tahun' => $jumlah_lulusan_satu_tahun,
+            'jumlah_dosen' => $jumlah_dosen
+        ];
+
+        return view('admin/akun', $data);
+    }
+
+    // Show edit form for kampus/account info
+    public function akunEdit()
+    {
+        $kampusModel = new KampusModel();
+        try {
+            $kampus = $kampusModel->getInfo();
+        } catch (\Exception $e) {
+            $kampus = null;
+            log_message('error', 'KampusModel->getInfo() failed in akunEdit: ' . $e->getMessage());
+            // Inform user via flashdata when they open the edit page
+            session()->setFlashdata('error', 'Tabel `kampus` tidak ditemukan di database. Anda dapat membuat tabel atau gunakan default values.');
+        }
+        $data = [
+            'title' => 'Edit Informasi Kampus',
+            'page' => 'akun',
+            'kampus' => $kampus
+        ];
+        return view('admin/akun_edit', $data);
+    }
+
+    // Save kampus/account info
+    public function akunSave()
+    {
+        $kampusModel = new KampusModel();
+
+        $post = $this->request->getPost();
+        // Only accept the three numeric fields for editing. Do not overwrite `nama` unless provided.
+        $payload = [
+            'jumlah_mahasiswa_aktif' => (int) ($post['jumlah_mahasiswa_aktif'] ?? 0),
+            'jumlah_lulusan_satu_tahun' => (int) ($post['jumlah_lulusan_satu_tahun'] ?? 0),
+            'jumlah_dosen' => (int) ($post['jumlah_dosen'] ?? 0),
+        ];
+        // If a name is explicitly provided (rare), include it; otherwise keep existing name.
+        if (!empty($post['nama'])) {
+            $payload['nama'] = $post['nama'];
+        }
+        try {
+            $existing = $kampusModel->getInfo();
+            if ($existing) {
+                $kampusModel->update($existing['id'], $payload);
+            } else {
+                // If inserting and name not provided, set a sensible default.
+                if (empty($payload['nama'])) {
+                    $payload['nama'] = 'Politeknik Negeri Sriwijaya';
+                }
+                $kampusModel->insert($payload);
+            }
+        } catch (\Exception $e) {
+            // Likely the table doesn't exist — return a helpful message to the user
+            log_message('error', 'Failed to save kampus info: ' . $e->getMessage());
+            $msg = 'Gagal menyimpan: tabel `kampus` tidak ditemukan. Buat tabel terlebih dahulu dengan SQL berikut:' . "\n" .
+                "CREATE TABLE kampus (id INT AUTO_INCREMENT PRIMARY KEY, nama VARCHAR(255) NOT NULL, jumlah_mahasiswa_aktif INT DEFAULT 0, jumlah_lulusan_satu_tahun INT DEFAULT 0, jumlah_dosen INT DEFAULT 0);";
+            return redirect()->to('admin/akun')->with('error', $msg);
+        }
+
+        return redirect()->to('admin/akun')->with('success', 'Informasi kampus berhasil disimpan.');
+    }
+
 }

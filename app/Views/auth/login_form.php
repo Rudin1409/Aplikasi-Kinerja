@@ -58,9 +58,15 @@
 
             <div class="mb-6">
                 <label for="password" class="block text-sm font-medium mb-2">Password</label>
-                <input type="password" id="password" name="password"
-                       class="form-input w-full px-4 py-3 rounded-lg border-none focus:ring-2 focus:ring-white/50"
-                       placeholder="••••••••" required>
+                <div class="relative">
+                    <input type="password" id="password" name="password"
+                           class="form-input w-full px-4 py-3 rounded-lg border-none focus:ring-2 focus:ring-white/50"
+                           placeholder="••••••••" required>
+                    <button type="button" id="toggle-password" aria-label="Tampilkan password"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-white/80 hover:text-white">
+                        <ion-icon name="eye-off-outline" id="toggle-icon" class="text-xl"></ion-icon>
+                    </button>
+                </div>
             </div>
 
             <div class="mb-4">
@@ -73,6 +79,29 @@
             </div>
         </form>
     </div>
-
+</form>
+    </div>
+    <script>
+        (function(){
+            const pw = document.getElementById('password');
+            const btn = document.getElementById('toggle-password');
+            const icon = document.getElementById('toggle-icon');
+            if (btn && pw) {
+                btn.addEventListener('click', function(){
+                    if (pw.type === 'password') {
+                        pw.type = 'text';
+                        if (icon) icon.setAttribute('name','eye-outline');
+                        btn.setAttribute('aria-label','Sembunyikan password');
+                    } else {
+                        pw.type = 'password';
+                        if (icon) icon.setAttribute('name','eye-off-outline');
+                        btn.setAttribute('aria-label','Tampilkan password');
+                    }
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
 </body>
 </html>

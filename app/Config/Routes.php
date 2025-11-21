@@ -43,10 +43,15 @@ $routes->group('admin', ['filter' => 'admin-auth'], static function ($routes) {
     // == HALAMAN MASTER DATA ==
     // URL: /admin/jurusan
     $routes->get('jurusan', 'AdminController::jurusan');
+    // URL: /admin/jurusan/J01 (detail jurusan)
+    $routes->get('jurusan/(:segment)', 'AdminController::jurusanDetail/$1');
     
     // URL: /admin/prodi
     $routes->get('prodi', 'AdminController::prodi');
     $routes->post('prodi/save', 'AdminController::saveProdi');
+    $routes->get('prodi-edit/(:num)', 'AdminController::prodiEdit/$1');
+    $routes->post('prodi-update/(:num)', 'AdminController::prodiUpdate/$1');
+    $routes->post('prodi-delete/(:num)', 'AdminController::prodiDelete/$1');
     
     $routes->get('iku-prodi/(:segment)/(:segment)/(:segment)', 'AdminController::ikuProdi/$1/$2/$3');
     // --- (Rute Admin Lainnya (Placeholder)) ---
@@ -55,6 +60,8 @@ $routes->group('admin', ['filter' => 'admin-auth'], static function ($routes) {
     // $routes->get('user', 'AdminController::user');
     // URL: /admin/akun (Menggantikan IKU)
     $routes->get('akun', 'AdminController::akun');
+    $routes->get('akun-edit', 'AdminController::akunEdit');
+    $routes->post('akun-save', 'AdminController::akunSave');
 
     $routes->get('iku', 'AdminController::iku');
 
