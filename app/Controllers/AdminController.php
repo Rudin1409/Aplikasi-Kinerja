@@ -26,7 +26,7 @@ class AdminController extends BaseController
 
         $data = [
             'title' => 'Dashboard Admin',
-            'page'  => 'dashboard',
+            'page' => 'dashboard',
             'grafikData' => $grafikData,
             'capaianJurusan' => $capaianJurusan
         ];
@@ -40,8 +40,8 @@ class AdminController extends BaseController
         $jurusan_list = $jurusanModel->getList();
 
         $data = [
-            'title'        => 'Master Data Jurusan',
-            'page'         => 'jurusan',
+            'title' => 'Master Data Jurusan',
+            'page' => 'jurusan',
             'jurusan_list' => $jurusan_list,
         ];
 
@@ -111,29 +111,29 @@ class AdminController extends BaseController
 
         return view('admin/jurusan_detail', $data);
     }
-    
+
     // FUNGSI BARU UNTUK HALAMAN PANDUAN
     public function panduan()
     {
         $data = [
-            'title'     => 'Panduan Pengguna',
-            'page'      => 'panduan', // OK
+            'title' => 'Panduan Pengguna',
+            'page' => 'panduan', // OK
         ];
 
         return view('admin/panduan', $data);
     }
-    
+
     // FUNGSI BARU UNTUK HALAMAN LAPORAN
     public function laporan()
     {
         $data = [
-            'title'     => 'Unduh Laporan',
-            'page'      => 'laporan', // OK
+            'title' => 'Unduh Laporan',
+            'page' => 'laporan', // OK
         ];
 
         return view('admin/laporan', $data);
     }
-    
+
     // GANTI FUNGSI user() ANDA DENGAN INI (Untuk Mengirim Data Relasi dengan Kode Prodi)
     public function user()
     {
@@ -142,7 +142,7 @@ class AdminController extends BaseController
         // 1. Data Jurusan (untuk dropdown) dari database
         $jurusanModel = new JurusanModel();
         $daftar_jurusan = $jurusanModel->getList();
-        
+
         // 2. Ambil prodi lengkap dari fungsi yang sudah ada
         $prodi_list = $this->_getCompleteProdiList();
 
@@ -157,10 +157,10 @@ class AdminController extends BaseController
         }
 
         $data = [
-            'title'           => 'Master Data User',
-            'page'            => 'user', 
-            'user_list'       => $model->findAll(),
-            'jurusan_list'    => $daftar_jurusan,
+            'title' => 'Master Data User',
+            'page' => 'user',
+            'user_list' => $model->findAll(),
+            'jurusan_list' => $daftar_jurusan,
             // Kirim data prodi yang sudah diformat dan dikelompokkan sebagai JSON
             'prodi_list_json' => json_encode($prodi_grouped)
         ];
@@ -172,7 +172,7 @@ class AdminController extends BaseController
     public function saveUser()
     {
         $model = new UserModel();
-        
+
         $role = $this->request->getPost('role');
         $relasi_kode = null; // Defaultnya null
 
@@ -180,7 +180,7 @@ class AdminController extends BaseController
         // Format penyimpanan:
         // - role=jurusan: "J01" (hanya kode jurusan)
         // - role=prodi: "J01|P01" (kode jurusan | kode prodi)
-        
+
         if ($role === 'jurusan') {
             // Jika role adalah "jurusan", relasi_kode adalah kode jurusan saja
             $relasi_kode = $this->request->getPost('relasi_kode'); // Contoh: "J01"
@@ -192,21 +192,21 @@ class AdminController extends BaseController
 
         $data = [
             'nama_lengkap' => $this->request->getPost('nama_lengkap'),
-            'email'        => $this->request->getPost('email'),
-            'password'     => $this->request->getPost('password'),
-            'role'         => $role,
-            'status'       => $this->request->getPost('status'),
-            'relasi_kode'  => $relasi_kode // Simpan kode dalam format baru
+            'email' => $this->request->getPost('email'),
+            'password' => $this->request->getPost('password'),
+            'role' => $role,
+            'status' => $this->request->getPost('status'),
+            'relasi_kode' => $relasi_kode // Simpan kode dalam format baru
         ];
-        
+
         // Model akan otomatis hash password karena ada callback beforeInsert di UserModel
         $model->save($data);
-        
+
         return redirect()->to('admin/user')->with('success', 'User berhasil ditambahkan.');
     }
 
     // ===== FUNGSI BARU INI WAJIB DITAMBAHKAN DI BAWAH =====
-    private function _getCompleteProdiList() 
+    private function _getCompleteProdiList()
     {
         // Data ini diambil dari fungsi prodiCapaian() Anda
         return [
@@ -262,25 +262,265 @@ class AdminController extends BaseController
             ['nama_prodi' => 'Teknologi Rekayasa Pangan', 'jenjang' => 'DIV', 'jurusan_kode' => 'J10'],
         ];
     }
-    
+
+
+    // FUNGSI SEMENTARA UNTUK SETUP DATABASE (MIGRATION & SEEDING)
+    public function setup_db()
+    {
+        $db = \Config\Database::connect();
+        $forge = \Config\Database::forge();
+
+        // 1. Buat Tabel master_iku jika belum ada
+        if (!$db->tableExists('master_iku')) {
+            $fields = [
+                'id' => [
+                    'type' => 'INT',
+                    'constraint' => 11,
+                    'unsigned' => true,
+                    'auto_increment' => true,
+                ],
+                'kode' => [
+                    'type' => 'VARCHAR',
+                    'constraint' => '10',
+                ],
+                'sasaran' => [
+                    'type' => 'VARCHAR',
+                    'constraint' => '255',
+                ],
+                'indikator' => [
+                    'type' => 'TEXT',
+                ],
+                'jenis' => [
+                    'type' => 'ENUM',
+                    'constraint' => ['Wajib', 'Pilihan'],
+                    'default' => 'Wajib',
+                ],
+                'tabel_tujuan' => [
+                    'type' => 'VARCHAR',
+                    'constraint' => '100',
+                    'null' => true,
+                ],
+                'created_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+                'updated_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+            ];
+            $forge->addField($fields);
+            $forge->addKey('id', true);
+            $forge->createTable('master_iku');
+            echo "Tabel master_iku berhasil dibuat.<br>";
+        } else {
+            echo "Tabel master_iku sudah ada.<br>";
+        }
+
+        // 2. Isi Data Awal (Seeding)
+        // Data dari gambar yang diupload user
+        $data = [
+            // IKU 1 (Talenta)
+            [
+                'kode' => '1',
+                'sasaran' => 'Talenta',
+                'indikator' => 'Angka Efisiensi Edukasi Perguruan Tinggi. (*)',
+                'jenis' => 'Wajib',
+                'tabel_tujuan' => null // Belum ada tabel
+            ],
+            [
+                'kode' => '2',
+                'sasaran' => 'Talenta',
+                'indikator' => 'Persentase lulusan pendidikan tinggi & vokasi yang langsung bekerja/melanjutkan jenjang pendidikan berikutnya dalam jangka waktu 1 tahun setelah kelulusan. (*)',
+                'jenis' => 'Wajib',
+                'tabel_tujuan' => 'iku_satu_satu'
+            ],
+            [
+                'kode' => '3',
+                'sasaran' => 'Talenta',
+                'indikator' => 'Persentase mahasiswa S1/D4/D3/D2/D1 berkegiatan /meraih prestasi di luar program studi. (*)',
+                'jenis' => 'Wajib',
+                'tabel_tujuan' => 'iku_satu_dua'
+            ],
+            [
+                'kode' => '4',
+                'sasaran' => 'Talenta',
+                'indikator' => 'Jumlah Dosen PT yang mendapatkan rekognisi internasional.',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => 'iku_dua_tiga' // Asumsi mapping
+            ],
+            // IKU 2a (Inovasi)
+            [
+                'kode' => '5',
+                'sasaran' => 'Inovasi',
+                'indikator' => 'Rasio luaran hasil kerja sama antara PT dan start-up/industri/Lembaga. (*)',
+                'jenis' => 'Wajib',
+                'tabel_tujuan' => null // Belum ada tabel spesifik, mungkin iku 6?
+            ],
+            [
+                'kode' => '6',
+                'sasaran' => 'Inovasi',
+                'indikator' => 'Persentase publikasi bereputasi internasional (Scopus/WoS).(**)',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+            // IKU 2b (Kontribusi pada Masyarakat)
+            [
+                'kode' => '7',
+                'sasaran' => 'Kontribusi pada Masyarakat',
+                'indikator' => 'Persentase keterlibatan Perguruan Tinggi dalam SDG 1 ((Tanpa Kemiskinan), SDG 4 (Pendidikan Berkualitas), SDG 17 (Kemitraan) dan 2 (dua) SDGs lain sesuai keunggulan.*',
+                'jenis' => 'Wajib',
+                'tabel_tujuan' => null
+            ],
+            [
+                'kode' => '8',
+                'sasaran' => 'Kontribusi pada Masyarakat',
+                'indikator' => 'Jumlah SDM PT (dosen, peneliti) yang terlibat langsung dalam penyusunan kebijakan (nasional/daerah/industri)',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+            // IKU 3 (Tata Kelola Berintegritas)
+            [
+                'kode' => '9',
+                'sasaran' => 'Tata Kelola Berintegritas',
+                'indikator' => 'Persentase Pendapatan Non Pendidikan/UKT*',
+                'jenis' => 'Wajib',
+                'tabel_tujuan' => null
+            ],
+            [
+                'kode' => '10',
+                'sasaran' => 'Tata Kelola Berintegritas',
+                'indikator' => 'Jumlah usulan Zona Integritas – WBK/WBBM',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+            // 11.1 - 11.4 (Pilihan, asumsi dari gambar dot hitam)
+            [
+                'kode' => '11.1',
+                'sasaran' => 'Tata Kelola Berintegritas',
+                'indikator' => 'Opini WTP atas Laporan Keuangan Perguruan Tinggi (Alt 1)',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+            [
+                'kode' => '11.2',
+                'sasaran' => 'Tata Kelola Berintegritas',
+                'indikator' => 'Predikat SAKIP Perguruan Tinggi (Alt 2)',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+            [
+                'kode' => '11.3',
+                'sasaran' => 'Tata Kelola Berintegritas',
+                'indikator' => 'Jumlah Laporan Pelanggaran Integritas Akademik (Alt 3)',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+            [
+                'kode' => '11.4',
+                'sasaran' => 'Tata Kelola Berintegritas',
+                'indikator' => 'Pencegahan dan Penanganan Anti Kekerasan, Anti Narkoba, dan Anti Korupsi (Alt 4)',
+                'jenis' => 'Pilihan',
+                'tabel_tujuan' => null
+            ],
+        ];
+
+        $masterModel = new \App\Models\MasterIkuModel();
+
+        // Cek apakah data sudah ada, jika belum insert
+        if ($masterModel->countAll() == 0) {
+            $masterModel->insertBatch($data);
+            echo "Data dummy master_iku berhasil ditambahkan.<br>";
+        } else {
+            // Optional: Truncate and re-seed if needed, or just skip
+            // $masterModel->truncate();
+            // $masterModel->insertBatch($data);
+            echo "Data master_iku sudah ada. Tidak ada perubahan data.<br>";
+        }
+
+        // Setup Table iku_1_aee (New IKU 1: AEE)
+        if (!$db->tableExists('iku_1_aee')) {
+            $forge->addField([
+                'id' => [
+                    'type' => 'INT',
+                    'constraint' => 11,
+                    'unsigned' => true,
+                    'auto_increment' => true,
+                ],
+                'user_id' => [
+                    'type' => 'INT',
+                    'constraint' => 11,
+                    'null' => true,
+                ],
+                'triwulan_id' => [
+                    'type' => 'INT',
+                    'constraint' => 11,
+                    'default' => 1,
+                ],
+                'prodi' => [
+                    'type' => 'VARCHAR',
+                    'constraint' => 100,
+                ],
+                'jenjang' => [
+                    'type' => 'VARCHAR',
+                    'constraint' => 10,
+                ],
+                'tahun_masuk' => [
+                    'type' => 'YEAR',
+                ],
+                'jml_mhs_masuk' => [
+                    'type' => 'INT',
+                    'constraint' => 11,
+                ],
+                'jml_lulus_tepat_waktu' => [
+                    'type' => 'INT',
+                    'constraint' => 11,
+                ],
+                'aee_realisasi' => [
+                    'type' => 'DECIMAL',
+                    'constraint' => '10,2', // % value
+                ],
+                'aee_ideal' => [
+                    'type' => 'DECIMAL',
+                    'constraint' => '10,2', // % target
+                ],
+                'capaian' => [
+                    'type' => 'DECIMAL',
+                    'constraint' => '10,2', // % achievement
+                ],
+                'created_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+                'updated_at' => [
+                    'type' => 'DATETIME',
+                    'null' => true,
+                ],
+            ]);
+            $forge->addPrimaryKey('id');
+            $forge->createTable('iku_1_aee');
+            echo "Tabel iku_1_aee berhasil dibuat.<br>";
+        } else {
+            echo "Tabel iku_1_aee sudah ada.<br>";
+        }
+
+        echo "Setup Selesai. <a href='" . base_url('admin/dashboard') . "'>Kembali ke Dashboard</a>";
+    }
+
+
     // FUNGSI BARU UNTUK HALAMAN MASTER DATA IKU
     public function iku()
     {
-        // Data 8 IKU
-        $daftar_iku = [
-            ['kode' => 'IKU 1.1', 'nama' => 'Lulusan Mendapat Pekerjaan/Studi/Wirausaha', 'sasaran' => 'S 1.0: Kualitas Lulusan'],
-            ['kode' => 'IKU 1.2', 'nama' => 'Mahasiswa Mendapat Pengalaman di Luar Prodi', 'sasaran' => 'S 1.0: Kualitas Lulusan'],
-            ['kode' => 'IKU 2.1', 'nama' => 'Kegiatan Dosen di Luar Kampus', 'sasaran' => 'S 2.0: Kualitas Dosen'],
-            ['kode' => 'IKU 2.2', 'nama' => 'Kualifikasi Dosen & Praktisi Mengajar', 'sasaran' => 'S 2.0: Kualitas Dosen'],
-            ['kode' => 'IKU 2.3', 'nama' => 'Hasil Karya Dosen (Rekognisi/Diterapkan)', 'sasaran' => 'S 2.0: Kualitas Dosen'],
-            ['kode' => 'IKU 3.1', 'nama' => 'Kerjasama Program Studi dengan Mitra', 'sasaran' => 'S 3.0: Kualitas Kurikulum'],
-            ['kode' => 'IKU 3.2', 'nama' => 'Metode Pembelajaran (Case/Project Based)', 'sasaran' => 'S 3.0: Kualitas Kurikulum'],
-            ['kode' => 'IKU 3.3', 'nama' => 'Akreditasi Internasional Program Studi', 'sasaran' => 'S 3.0: Kualitas Kurikulum'],
-        ];
+        $masterModel = new \App\Models\MasterIkuModel();
+
+        // Ambil data IKU dari database
+        // Ambil data IKU dari database
+        // Urutkan berdasarkan ID agar urutan Sasaran sesuai (1, 2, 3...)
+        $daftar_iku = $masterModel->orderBy('id', 'ASC')->findAll();
 
         $data = [
-            'title'     => 'Master Data IKU',
-            'page'      => 'iku', // OK
+            'title' => 'Master Data IKU',
+            'page' => 'iku', // OK
             'iku_list' => $daftar_iku
         ];
 
@@ -292,43 +532,43 @@ class AdminController extends BaseController
     public function pengaturan()
     {
         $data = [
-            'title'     => 'Pengaturan',
-            'page'      => 'pengaturan',
+            'title' => 'Pengaturan',
+            'page' => 'pengaturan',
         ];
 
         return view('admin/pengaturan', $data);
     }
-    
+
     // FUNGSI BARU UNTUK UPDATE PROFIL
     public function updateProfil()
     {
         $session = \Config\Services::session();
         $userId = $session->get('user_id');
-        
+
         // Validasi user_id ada di session
         if (!$userId) {
             return redirect()->to('admin/pengaturan')->with('error', 'Session tidak valid, silakan login kembali.');
         }
-        
+
         // Ambil data dari form
         $nama_lengkap = $this->request->getPost('nama_lengkap');
         $email = $this->request->getPost('email');
-        
+
         // Siapkan data update
         $updateData = [
             'nama_lengkap' => $nama_lengkap,
             'email' => $email
         ];
-        
+
         // Handle avatar upload (optional)
         $avatar = $this->request->getFile('avatar');
         if ($avatar && $avatar->isValid() && !$avatar->hasMoved()) {
-            $allowedTypes = ['image/jpeg','image/jpg','image/png','image/gif'];
+            $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
             if (!in_array($avatar->getMimeType(), $allowedTypes)) {
-                return redirect()->to('admin/pengaturan')->with('error','Format avatar tidak didukung (gunakan JPG/PNG/GIF).');
+                return redirect()->to('admin/pengaturan')->with('error', 'Format avatar tidak didukung (gunakan JPG/PNG/GIF).');
             }
             if ($avatar->getSize() > 2_048_000) {
-                return redirect()->to('admin/pengaturan')->with('error','Ukuran avatar melebihi 2MB.');
+                return redirect()->to('admin/pengaturan')->with('error', 'Ukuran avatar melebihi 2MB.');
             }
             $newName = $avatar->getRandomName();
             $writablePath = WRITEPATH . 'uploads/avatars';
@@ -336,26 +576,26 @@ class AdminController extends BaseController
                 mkdir($writablePath, 0777, true);
             }
             if (!$avatar->move($writablePath, $newName)) {
-                return redirect()->to('admin/pengaturan')->with('error','Gagal menyimpan file avatar.');
+                return redirect()->to('admin/pengaturan')->with('error', 'Gagal menyimpan file avatar.');
             }
             $updateData['avatar'] = $newName;
             $session->set('avatar', $newName);
         }
-        
+
         // Update ke database
         $model = new UserModel();
         $updated = $model->update($userId, $updateData);
-        
+
         if (!$updated) {
             return redirect()->to('admin/pengaturan')->with('error', 'Gagal memperbarui database.');
         }
-        
+
         // Update session nama & email
         $session->set([
             'nama_lengkap' => $nama_lengkap,
             'email' => $email
         ]);
-        
+
         return redirect()->to('admin/pengaturan')->with('success', 'Profil berhasil diperbarui!');
     }
 
@@ -380,63 +620,63 @@ class AdminController extends BaseController
             ->setHeader('Content-Length', (string) filesize($path))
             ->setBody(file_get_contents($path));
     }
-    
+
     // FUNGSI BARU UNTUK UPDATE PASSWORD
     public function updatePassword()
     {
         $session = \Config\Services::session();
         $userId = $session->get('user_id');
-        
+
         $password_lama = $this->request->getPost('password_lama');
         $password_baru = $this->request->getPost('password_baru');
         $konfirmasi_password = $this->request->getPost('konfirmasi_password');
-        
+
         // Validasi password baru sama dengan konfirmasi
         if ($password_baru !== $konfirmasi_password) {
             return redirect()->to('admin/pengaturan')->with('error', 'Password baru dan konfirmasi tidak cocok!');
         }
-        
+
         // Validasi minimal 8 karakter
         if (strlen($password_baru) < 8) {
             return redirect()->to('admin/pengaturan')->with('error', 'Password minimal 8 karakter!');
         }
-        
+
         // Ambil user dari database untuk cek password lama
         $model = new UserModel();
         $user = $model->find($userId);
-        
+
         if (!$user || !password_verify($password_lama, $user['password'])) {
             return redirect()->to('admin/pengaturan')->with('error', 'Password lama tidak sesuai!');
         }
-        
+
         // Update password baru (hash otomatis via callback di UserModel)
         $model->update($userId, ['password' => $password_baru]);
-        
+
         return redirect()->to('admin/pengaturan')->with('success', 'Password berhasil diperbarui!');
     }
-    
+
     // FUNGSI BARU UNTUK UPDATE TAMPILAN
     public function updateTampilan()
     {
         $theme = $this->request->getPost('theme');
         $sidebar_mini = $this->request->getPost('sidebar_mini') ? 1 : 0;
-        
+
         // Simpan preferensi ke session atau database user
         $session = \Config\Services::session();
         $session->set([
             'theme_preference' => $theme,
             'sidebar_mini_default' => $sidebar_mini
         ]);
-        
+
         return redirect()->to('admin/pengaturan')->with('success', 'Preferensi tampilan berhasil disimpan!');
     }
-    
+
     // FUNGSI LAMA updatePengaturan (deprecated, bisa dihapus nanti)
     public function updatePengaturan()
     {
         return redirect()->to('admin/pengaturan')->with('success', 'Pengaturan berhasil diperbarui!');
     }
-    
+
     // Fungsi untuk menyimpan data prodi (dari route 'prodi/save')
     public function saveProdi()
     {
@@ -462,8 +702,8 @@ class AdminController extends BaseController
             'jurusan_id' => $jurusan['id'],
             'kode_prodi' => $kode_prodi,
             'nama_prodi' => $nama_prodi,
-            'jenjang'    => $jenjang,
-            'status'     => 'active'
+            'jenjang' => $jenjang,
+            'status' => 'active'
         ];
 
         try {
@@ -497,7 +737,7 @@ class AdminController extends BaseController
 
         // 3. Cari data prodi berdasarkan kode prodi dari list lengkap
         $prodi_list = $this->_getCompleteProdiList();
-        
+
         $prodi_data = null;
         $counter = 1;
         foreach ($prodi_list as $prodi) {
@@ -520,7 +760,7 @@ class AdminController extends BaseController
         // Target URL: /admin/iku-prodi/J01/Teknik%20Sipil/DIII
         return redirect()->to('admin/iku-prodi/' . $jurusan_kode . '/' . rawurlencode($nama_prodi) . '/' . $jenjang);
     }
-    
+
     // Tampilkan halaman IKU untuk sebuah prodi
     public function ikuProdi($jurusan_kode = null, $nama_prodi = null, $jenjang = null)
     {
@@ -539,28 +779,43 @@ class AdminController extends BaseController
         $found = null;
         foreach ($candidates as $p) {
             if (strcasecmp($p['nama_prodi'], rawurldecode($nama_prodi)) === 0 && strcasecmp($p['jenjang'], $jenjang) === 0) {
-                $found = $p; break;
+                $found = $p;
+                break;
             }
         }
         if (!$found && !empty($candidates)) {
             $found = $candidates[0];
         }
 
-        // Gunakan nilai IKU tetap sesuai screenshot contoh (agar total sesuai permintaan)
-        $iku_data = [
-            ['kode'=>'IKU 1.1','nama'=>'Lulusan Mendapat Pekerjaan/Studi/Wirausaha','persentase'=>73,'icon'=>'trophy-outline'],
-            ['kode'=>'IKU 1.2','nama'=>'Mahasiswa Mendapat Pengalaman di Luar Prodi','persentase'=>80,'icon'=>'school-outline'],
-            ['kode'=>'IKU 2.1','nama'=>'Kegiatan Dosen di Luar Kampus','persentase'=>90,'icon'=>'person-outline'],
-            ['kode'=>'IKU 2.2','nama'=>'Kualifikasi Dosen & Praktisi Mengajar','persentase'=>84,'icon'=>'sparkles-outline'],
-            ['kode'=>'IKU 2.3','nama'=>'Hasil Karya Dosen (Rekognisi/Diterapkan)','persentase'=>76,'icon'=>'trophy-outline'],
-            ['kode'=>'IKU 3.1','nama'=>'Kerjasama Program Studi dengan Mitra','persentase'=>93,'icon'=>'people-circle-outline'],
-            ['kode'=>'IKU 3.2','nama'=>'Metode Pembelajaran (Case/Project Based)','persentase'=>72,'icon'=>'bulb-outline'],
-            ['kode'=>'IKU 3.3','nama'=>'Akreditasi Internasional Program Studi','persentase'=>17,'icon'=>'globe-outline'],
-        ];
+        // Ambil data IKU dari Database (hanya Wajib sesuai permintaan user)
+        $masterModel = new \App\Models\MasterIkuModel();
+        $master_iku = $masterModel->where('jenis', 'Wajib')
+            ->orderBy('id', 'ASC')
+            ->findAll();
+
+        // Map ke format tampilan iku_prodi
+        $iku_data = [];
+        foreach ($master_iku as $m) {
+            $iku_data[] = [
+                'kode' => 'IKU ' . $m['kode'], // Tampilkan Kode (misal IKU 1, IKU 2)
+                'nama' => $m['indikator'],    // Indikator sebagai Nama
+                'persentase' => rand(0, 100),       // Dummy data capaian (nanti dihitung real)
+                'sasaran' => $m['sasaran'],      // Tambahan info sasaran
+                // Icon mapping manual sederhana biar cantik
+                'icon' => 'stats-chart-outline',
+            ];
+        }
+
+        // Jika masih null, isi dummy jika db kosong (fallback)
+        if (empty($iku_data)) {
+            $iku_data = [
+                ['kode' => 'IKU 1', 'nama' => 'Angka Efisiensi Edukasi Perguruan Tinggi', 'persentase' => 0, 'sasaran' => 'Talenta', 'icon' => 'warning-outline'],
+            ];
+        }
 
         $data = [
             'title' => 'IKU Prodi',
-            'page'  => 'iku-prodi',
+            'page' => 'iku-prodi',
             'nama_jurusan' => $nama_jurusan,
             'nama_prodi' => rawurldecode($nama_prodi),
             'jenjang' => $jenjang,
@@ -587,7 +842,7 @@ class AdminController extends BaseController
         $detail = [
             'iku' => rawurldecode($iku_code),
             'deskripsi' => 'Deskripsi/penjelasan untuk ' . rawurldecode($iku_code) . '.',
-            'nilai' => rand(40,98),
+            'nilai' => rand(40, 98),
             'target' => 85,
             'catatan' => 'Data masih simulasi karena belum ada penyimpanan IKU di database.'
         ];
@@ -611,31 +866,136 @@ class AdminController extends BaseController
         // Default triwulan text (could be made dynamic)
         $triwulan_text = 'TW 1 (Januari - Maret 2025)';
 
-        // Table headers and sample data tailored for IKU 1.1 (Capaian Lulusan)
-        if (stripos($decoded_iku, '1.1') !== false) {
+        // Ambil data IKU dari Table Master
+        // ... (Mapping Code sebelumnya)
+
+        // LOGIKA PERUBAHAN: Ambil data Real dari Tabel iku_satu_satu jika IKU == 2 (Lulusan)
+        // Note: User menyebutnya IKU 1 di chat terakhir, tapi secara teknis di Master IKU dia IKU 2.
+        // Kita cek fleksibel.
+
+        $data_list = [];
+        $table_headers = []; // Initialize here
+
+        // ==== IKU 1 (AEE) ====
+        if (stripos($decoded_iku, '1') !== false) {
+            $iku_model = new \App\Models\Iku1AeeModel();
             $table_headers = [
-                'nama_lulusan' => 'NAMA LULUSAN',
-                'nim' => 'NIM',
-                'status' => 'STATUS (BEKERJA/STUDI/WIRAUSAHA)',
-                'bukti' => 'BUKTI (SK/NIB)'
+                'tahun_masuk' => 'ANGKATAN',
+                'jml_mhs_masuk' => 'MAHASISWA MASUK',
+                'jml_lulus_tepat_waktu' => 'LULUS TEPAT WAKTU',
+                'aee_realisasi' => 'AEE REALISASI (%)',
+                'aee_ideal' => 'TARGET IDEAL (%)',
+                'capaian' => 'CAPAIAN (%)'
             ];
 
-            $data_list = [
-                ['nama_lulusan' => 'Ahmad Budi', 'nim' => '0623...1', 'status' => 'Bekerja', 'bukti' => 'SK.pdf'],
-                ['nama_lulusan' => 'Citra Lestari', 'nim' => '0623...2', 'status' => 'Wirausaha', 'bukti' => 'NIB.pdf'],
-            ];
-        } else {
-            // Generic headers for other IKU types
-            $table_headers = [
-                'keterangan' => 'Keterangan',
-                'nilai' => 'Nilai',
-                'bukti' => 'Bukti'
-            ];
-            $data_list = [
-                ['keterangan' => 'Contoh data 1', 'nilai' => '75%', 'bukti' => '-'],
-                ['keterangan' => 'Contoh data 2', 'nilai' => '82%', 'bukti' => '-'],
-            ];
+            $raw_data = $iku_model->where('prodi', rawurldecode($nama_prodi))
+                ->orderBy('tahun_masuk', 'DESC')
+                ->findAll();
+
+            $data_list = [];
+            $total_capaian = 0;
+            $count = 0;
+
+            foreach ($raw_data as $row) {
+                $data_list[] = [
+                    'tahun_masuk' => $row['tahun_masuk'],
+                    'jml_mhs_masuk' => $row['jml_mhs_masuk'],
+                    'jml_lulus_tepat_waktu' => $row['jml_lulus_tepat_waktu'],
+                    'aee_realisasi' => number_format($row['aee_realisasi'], 2),
+                    'aee_ideal' => number_format($row['aee_ideal'], 2),
+                    // Color code capaian
+                    'capaian' => ($row['capaian'] >= 100)
+                        ? '<span class="text-green-600 font-bold">' . number_format($row['capaian'], 2) . '</span>'
+                        : '<span class="text-red-500 font-bold">' . number_format($row['capaian'], 2) . '</span>'
+                ];
+                $total_capaian += $row['capaian'];
+                $count++;
+            }
+
+            // Update Stats for IKU 1
+            $avg_capaian = $count > 0 ? $total_capaian / $count : 0;
+            $detail['nilai'] = number_format($avg_capaian, 2);
+
+            // Override Button Text
+            $data['tambah_button_text'] = 'Tambah Data AEE';
+
         }
+        // ==== IKU 2 / IKU Lulusan ====
+        elseif (stripos($decoded_iku, '2') !== false || stripos($decoded_iku, 'Lulusan') !== false) {
+            // ... (Kode sebelumnya untuk Lulusan Bekerja)
+            $iku_satu_satu_model = new \App\Models\IkuSatuSatuModel();
+            $table_headers = [
+                'alumni' => 'ALUMNI',
+                'kelulusan' => 'KELULUSAN',
+                'status' => 'STATUS',
+                'tempat' => 'TEMPAT',
+                'pendapatan' => 'PENDAPATAN',
+                'masa_tunggu' => 'MASA TUNGGU',
+                'point' => 'POINT',
+                'bukti' => 'BUKTI'
+            ];
+
+            // Ambil data real
+            $raw_data = $iku_satu_satu_model->where('prodi', rawurldecode($nama_prodi))
+                ->findAll();
+
+            foreach ($raw_data as $row) {
+                $data_list[] = [
+                    'nama_lulusan' => $row['nama'],
+                    'nim' => $row['nim'],
+                    'no_ijazah' => $row['no_ijazah'],
+                    'tahun_lulus' => $row['tahun_lulus'],
+                    'status' => $row['status'],
+                    'tempat' => $row['nama_tempat'],
+                    'tanggal_mulai' => $row['tanggal_mulai'],
+                    'pendapatan' => 'Rp ' . number_format($row['pendapatan'], 0, ',', '.'),
+                    'ump' => 'Rp ' . number_format($row['ump'], 0, ',', '.'),
+                    'masa_tunggu' => $row['masa_tunggu'] . ' Bulan',
+                    'point' => $row['point']
+                ];
+            }
+
+            // Tampilkan Dummy jika kosong biar user gak bingung
+            if (empty($data_list)) {
+                $data_list = [
+                    // [
+                    //     'nama_lulusan' => 'Contoh Data (Belum Ada di DB)',
+                    //     'nim' => '-',
+                    //     'no_ijazah' => '-',
+                    //     'tahun_lulus' => '-',
+                    //     'status' => 'Silakan Tambah Data',
+                    //     'tempat' => '-',
+                    //     'tanggal_mulai' => '-',
+                    //     'pendapatan' => '-',
+                    //     'ump' => '-',
+                    //     'masa_tunggu' => '-',
+                    //     'point' => '-'
+                    // ]
+                ];
+            }
+            $data['tambah_button_text'] = 'Tambah Data Alumni';
+        } else {
+            $table_headers = ['Keterangan', 'Nilai', 'Bukti'];
+            $data_list = [];
+        }
+
+        // Hitung Statistik Sederhana (This part might need adjustment based on IKU type)
+        // This block was originally for IKU 2 (Lulusan) only.
+        // If IKU 1 is active, $data_list will be AEE data, so this calculation is not relevant.
+        // For now, keep it as is, but be aware it's specific to IKU 2.
+        $total_alumni = count($data_list);
+        $memenuhi = 0; // Logic hitung point >= 1.0 misalnya
+        foreach ($data_list as $item) {
+            if (isset($item['point']) && (float) $item['point'] >= 1.0) {
+                $memenuhi++;
+            }
+        }
+
+        $persentase_memenuhi = $total_alumni > 0 ? round(($memenuhi / $total_alumni) * 100, 2) : 0;
+
+        $data['table_headers'] = $table_headers;
+        $data['data_list'] = $data_list;
+        $data['iku_detail'] = $detail; // Update detail nilai
 
         $data = [
             'title' => $iku_title,
@@ -678,7 +1038,7 @@ class AdminController extends BaseController
 
         $data = [
             'title' => 'Laporan Capaian Jurusan',
-            'page'  => 'jurusan',
+            'page' => 'jurusan',
             'jurusan_list' => $jurusan_list,
             'total_jurusan' => $total_jurusan,
             'rata_rata_capaian' => $rata_rata
@@ -716,15 +1076,116 @@ class AdminController extends BaseController
 
         $data = [
             'title' => 'Laporan Capaian Prodi',
-            'page'  => 'jurusan',
+            'page' => 'jurusan',
             'nama_jurusan' => $nama_jurusan,
             'jurusan_kode' => $jurusan_kode,
-            'prodi_list' => $prodi_list,
-            'total_prodi' => $total_prodi,
-            'rata_rata_capaian' => $rata
         ];
 
         return view('admin/prodi_capaian', $data);
+    }
+
+    // FORM INPUT DATA IKU
+    public function ikuInput($iku_code, $jurusan_kode, $nama_prodi, $jenjang)
+    {
+        $data = [
+            'title' => 'Input Data IKU ' . $iku_code,
+            'page' => 'iku-input',
+            'iku_code' => $iku_code, // e.g. "1" or "2"
+            'jurusan_kode' => $jurusan_kode,
+            'nama_prodi' => rawurldecode($nama_prodi),
+            'jenjang' => $jenjang,
+            'back_url' => site_url("admin/iku-detail/$iku_code/$jurusan_kode/$nama_prodi/$jenjang")
+        ];
+
+        // Tampilkan view sesuai kode IKU (sementara IKU 1/2 pakai yang sama)
+        return view('admin/input/iku1', $data);
+    }
+
+    // PROSES SIMPAN DATA IKU
+    public function ikuSave($iku_code)
+    {
+        $request = \Config\Services::request();
+        $jurusan_kode = $request->getPost('jurusan_kode');
+        $nama_prodi = $request->getPost('nama_prodi');
+        $jenjang = $request->getPost('jenjang');
+        $back_url = $request->getPost('back_url');
+
+        // ==== LOGIKA IKU 1: AEE (ANGKA EFISIENSI EDUKASI) ====
+        if ($iku_code == '1') {
+            $model = new \App\Models\Iku1AeeModel();
+
+            // Input Data
+            $jml_masuk = $request->getPost('jml_mhs_masuk');
+            $jml_lulus = $request->getPost('jml_lulus_tepat_waktu');
+            $tahun_masuk = $request->getPost('tahun_masuk');
+
+            // 1. Hitung AEE Realisasi
+            $aee_real = 0;
+            if ($jml_masuk > 0) {
+                $aee_real = ($jml_lulus / $jml_masuk) * 100;
+            }
+
+            // 2. Tentukan AEE Ideal berdasarkan Jenjang
+            // D3 = 33%, D4/S1 = 25%, S2 = 50%, S3 = 33%
+            $jenjang_upper = strtoupper($jenjang);
+            $aee_ideal = 25; // Default (S1/D4)
+            if (strpos($jenjang_upper, 'D3') !== false || strpos($jenjang_upper, 'S3') !== false) {
+                $aee_ideal = 33;
+            } elseif (strpos($jenjang_upper, 'S2') !== false) {
+                $aee_ideal = 50;
+            }
+
+            // 3. Hitung Capaian (% dari Ideal)
+            $capaian = 0;
+            if ($aee_ideal > 0) {
+                $capaian = ($aee_real / $aee_ideal) * 100;
+            }
+
+            $current_user_id = session()->get('id') ?? 1;
+
+            $data = [
+                'user_id' => $current_user_id,
+                'triwulan_id' => 1,
+                'prodi' => rawurldecode($nama_prodi),
+                'jenjang' => $jenjang,
+                'tahun_masuk' => $tahun_masuk,
+                'jml_mhs_masuk' => $jml_masuk,
+                'jml_lulus_tepat_waktu' => $jml_lulus,
+                'aee_realisasi' => $aee_real,
+                'aee_ideal' => $aee_ideal,
+                'capaian' => $capaian
+            ];
+
+            $model->insert($data);
+
+            return redirect()->to($back_url)->with('success', 'Data AEE berhasil disimpan! Capaian: ' . number_format($capaian, 2) . '%');
+        }
+
+        // ==== LOGIKA IKU 2: LULUSAN BEKERJA (dulu IKU 1.1) ====
+        if ($iku_code == '2' || $iku_code == '1.1') {
+            // ... (Kode sebelumnya untuk Lulusan Bekerja)
+            $model = new \App\Models\IkuSatuSatuModel();
+            $data = [
+                'user_id' => session()->get('id') ?? 1,
+                'triwulan_id' => 1,
+                'nama' => $request->getPost('nama'),
+                'nim' => $request->getPost('nim'),
+                'prodi' => $nama_prodi,
+                'tahun_lulus' => $request->getPost('tahun_lulus'),
+                'status' => $request->getPost('status'),
+                'nama_tempat' => $request->getPost('nama_tempat'),
+                'pendapatan' => $request->getPost('pendapatan'),
+                'ump' => $request->getPost('ump'),
+                'tanggal_mulai' => $request->getPost('tanggal_mulai'),
+                'tingkat' => $request->getPost('tingkat'),
+                'link_bukti' => $request->getPost('link_bukti'),
+                'point' => 0
+            ];
+            $model->insert($data);
+            return redirect()->to($back_url)->with('success', 'Data Lulusan berhasil disimpan!');
+        }
+
+        return redirect()->to($back_url);
     }
 
     // Halaman master data prodi
@@ -738,7 +1199,7 @@ class AdminController extends BaseController
 
         $data = [
             'title' => 'Master Data Prodi',
-            'page'  => 'prodi',
+            'page' => 'prodi',
             'jurusan_list' => $jurusan_list,
             'prodi_list' => $prodi_list
         ];
@@ -843,7 +1304,9 @@ class AdminController extends BaseController
         $kampusModel = new KampusModel();
 
         $jurusan_rows = $jurusanModel->getList();
-        $jurusan_names = array_map(function($r){ return $r['nama']; }, $jurusan_rows);
+        $jurusan_names = array_map(function ($r) {
+            return $r['nama'];
+        }, $jurusan_rows);
         $prodi_rows = $prodiModel->getAllWithJurusan();
         // Compute totals from `prodi` table (if values exist there)
         $sum_mahasiswa = 0;
@@ -872,13 +1335,13 @@ class AdminController extends BaseController
         }
 
         if ($kampus_row) {
-            $kampus = [ 'nama' => $kampus_row['nama'] ];
+            $kampus = ['nama' => $kampus_row['nama']];
             // Prefer aggregated prodi sums for mahasiswa and dosen when present (non-zero)
             $jumlah_mahasiswa_aktif = $sum_mahasiswa > 0 ? $sum_mahasiswa : (int) ($kampus_row['jumlah_mahasiswa_aktif'] ?? 0);
             $jumlah_dosen = $sum_dosen > 0 ? $sum_dosen : (int) ($kampus_row['jumlah_dosen'] ?? 0);
             $jumlah_lulusan_satu_tahun = (int) ($kampus_row['jumlah_lulusan_satu_tahun'] ?? 0);
         } else {
-            $kampus = [ 'nama' => 'Politeknik Negeri Sriwijaya' ];
+            $kampus = ['nama' => 'Politeknik Negeri Sriwijaya'];
             $jumlah_mahasiswa_aktif = $sum_mahasiswa > 0 ? $sum_mahasiswa : 3100;
             $jumlah_lulusan_satu_tahun = 3000;
             $jumlah_dosen = $sum_dosen > 0 ? $sum_dosen : 500;

@@ -24,37 +24,44 @@ $routes->get('avatar/(:segment)', 'AdminController::avatar/$1');
  */
 // Menambahkan filter 'admin-auth' yang sudah kita buat
 $routes->group('admin', ['filter' => 'admin-auth'], static function ($routes) {
-    
+
     // == HALAMAN DASHBOARD ==
     // URL: /admin/dashboard
     $routes->get('dashboard', 'AdminController::dashboard');
-    
+
+    // Rute Setup DB (Sementara)
+    $routes->get('setup_db', 'AdminController::setup_db');
+
     // == HALAMAN LAPORAN CAPAIAN (DRILL-DOWN) ==
     // URL: /admin/jurusan-capaian (INI RUTE BARU)
     $routes->get('jurusan-capaian', 'AdminController::jurusanCapaian');
-    
+
     // URL: /admin/prodi-capaian/J01 (INI RUTE BARU)
     $routes->get('prodi-capaian/(:segment)', 'AdminController::prodiCapaian/$1');
-    
+
     // RUTE BARU: Landing Page untuk Prodi setelah login
     $routes->get('prodi-dashboard-redirect', 'AdminController::prodiDashboardRedirect');
-    
-    
+
+
     // == HALAMAN MASTER DATA ==
     // URL: /admin/jurusan
     $routes->get('jurusan', 'AdminController::jurusan');
     // URL: /admin/jurusan/J01 (detail jurusan)
     $routes->get('jurusan/(:segment)', 'AdminController::jurusanDetail/$1');
-    
+
     // URL: /admin/prodi
     $routes->get('prodi', 'AdminController::prodi');
     $routes->post('prodi/save', 'AdminController::saveProdi');
     $routes->get('prodi-edit/(:num)', 'AdminController::prodiEdit/$1');
     $routes->post('prodi-update/(:num)', 'AdminController::prodiUpdate/$1');
     $routes->post('prodi-delete/(:num)', 'AdminController::prodiDelete/$1');
-    
+
     $routes->get('iku-prodi/(:segment)/(:segment)/(:segment)', 'AdminController::ikuProdi/$1/$2/$3');
     // --- (Rute Admin Lainnya (Placeholder)) ---
+    // URL: /admin/iku-input/1/J01/...
+    $routes->get('iku-input/(:segment)/(:segment)/(:segment)/(:segment)', 'AdminController::ikuInput/$1/$2/$3/$4');
+    $routes->post('iku-save/(:segment)', 'AdminController::ikuSave/$1');
+
     $routes->get('iku-detail/(:segment)/(:segment)/(:segment)/(:segment)', 'AdminController::ikuDetail/$1/$2/$3/$4');
     // URL: /admin/user
     // $routes->get('user', 'AdminController::user');
@@ -81,7 +88,7 @@ $routes->group('admin', ['filter' => 'admin-auth'], static function ($routes) {
     $routes->post('pengaturan/update-tampilan', 'AdminController::updateTampilan');
     $routes->post('pengaturan/update', 'AdminController::updatePengaturan'); // Legacy (deprecated)
 
-    
+
     // URL: /admin/iku
     // $routes->get('iku', 'AdminController::iku');
 });
