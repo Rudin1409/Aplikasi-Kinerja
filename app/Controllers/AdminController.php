@@ -34,6 +34,33 @@ class AdminController extends BaseController
         return view('admin/dashboard', $data);
     }
 
+    // Temporary DB Setup for IKU 2
+    public function setup_iku2_db()
+    {
+        $db = \Config\Database::connect();
+        $sql = "CREATE TABLE IF NOT EXISTS `tb_iku_2_lulusan` (
+          `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          `id_triwulan` INT(11) UNSIGNED NOT NULL,
+          `nim` VARCHAR(20) NOT NULL,
+          `status_aktivitas` ENUM('Bekerja', 'Melanjutkan Pendidikan', 'Wirausaha', 'Mencari Kerja', 'Belum Memungkinkan Bekerja') DEFAULT 'Mencari Kerja',
+          `nama_tempat` VARCHAR(255) NULL,
+          `pendapatan` DECIMAL(15,2) DEFAULT 0,
+          `masa_tunggu_bulan` INT(11) DEFAULT 0,
+          `link_bukti` TEXT NULL,
+          `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+          `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          KEY `nim` (`nim`),
+          CONSTRAINT `fk_iku2_nim` FOREIGN KEY (`nim`) REFERENCES `tb_m_mahasiswa` (`nim`) ON DELETE CASCADE ON UPDATE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+
+        try {
+            $db->query($sql);
+            echo "Table tb_iku_2_lulusan created successfully.";
+        } catch (\Exception $e) {
+            echo "Error: " . $e->getMessage();
+        }
+    }
+
     public function jurusan()
     {
         $jurusanModel = new JurusanModel();
@@ -505,6 +532,16 @@ class AdminController extends BaseController
         }
 
         echo "Setup Selesai. <a href='" . base_url('admin/dashboard') . "'>Kembali ke Dashboard</a>";
+        // 3. FIX COLLATION SQL (OTOMATIS DIJALANKAN)
+        try {
+            // Paksa ubah collation tabel yang bermasalah agar sama dengan tabel lainnya (utf8mb4_general_ci)
+            $db->query("ALTER TABLE tb_iku_1_lulusan CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+            $db->query("ALTER TABLE tb_iku_2_tracer CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+            $db->query("ALTER TABLE master_iku CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+            echo "<b>[AUTO FIX]</b> Collation Database berhasil diperbaiki (utf8mb4_general_ci).<br>";
+        } catch (\Exception $e) {
+            echo "<b>[AUTO FIX ERROR]</b> Gagal ubah collation: " . $e->getMessage() . "<br>";
+        }
     }
 
 
@@ -768,8 +805,15 @@ class AdminController extends BaseController
             return redirect()->to('admin/prodi')->with('error', 'Parameter prodi tidak lengkap.');
         }
 
+        $request = \Config\Services::request();
+        $db = \Config\Database::connect();
+
         $jurusanModel = new JurusanModel();
         $prodiModel = new ProdiModel();
+        // Active Triwulan Logic
+        $active_triwulan = $db->table('triwulan')->where('status', 'Aktif')->get()->getRowArray();
+        $id_triwulan_selected = $request->getGet('id_triwulan') ?? ($active_triwulan['id'] ?? 1);
+        $triwulan_list = $db->table('triwulan')->get()->getResultArray();
 
         $map = $jurusanModel->getMap();
         $nama_jurusan = $map[$jurusan_kode] ?? $jurusan_kode;
@@ -787,6 +831,8 @@ class AdminController extends BaseController
             $found = $candidates[0];
         }
 
+        $kode_prodi_target = $found['kode_prodi'] ?? null;
+
         // Ambil data IKU dari Database (hanya Wajib sesuai permintaan user)
         $masterModel = new \App\Models\MasterIkuModel();
         $master_iku = $masterModel->where('jenis', 'Wajib')
@@ -796,20 +842,80 @@ class AdminController extends BaseController
         // Map ke format tampilan iku_prodi
         $iku_data = [];
         foreach ($master_iku as $m) {
-            $iku_data[] = [
-                'kode' => 'IKU ' . $m['kode'], // Tampilkan Kode (misal IKU 1, IKU 2)
-                'nama' => $m['indikator'],    // Indikator sebagai Nama
-                'persentase' => rand(0, 100),       // Dummy data capaian (nanti dihitung real)
-                'sasaran' => $m['sasaran'],      // Tambahan info sasaran
-                // Icon mapping manual sederhana biar cantik
-                'icon' => 'stats-chart-outline',
-            ];
-        }
+            $persentase = 0;
 
-        // Jika masih null, isi dummy jika db kosong (fallback)
-        if (empty($iku_data)) {
-            $iku_data = [
-                ['kode' => 'IKU 1', 'nama' => 'Angka Efisiensi Edukasi Perguruan Tinggi', 'persentase' => 0, 'sasaran' => 'Talenta', 'icon' => 'warning-outline'],
+            // === LOGIC HITUNG PER IKU ===
+
+            // IKU 1 (AEE)
+            if ($m['kode'] == '1') {
+                if ($kode_prodi_target) {
+                    // Ambil Daftar Angkatan (Tahun Masuk) dari tb_m_mahasiswa
+                    $distinct_angkatan = $db->table('tb_m_mahasiswa')
+                        ->select('tahun_masuk')
+                        ->where('kode_prodi', $kode_prodi_target)
+                        ->distinct()
+                        ->orderBy('tahun_masuk', 'DESC')
+                        ->get()->getResultArray();
+
+                    $total_capaian = 0;
+                    $count_angkatan = 0;
+
+                    $target_ideal = 25; // Default D4/S1
+                    if ($jenjang == 'D3')
+                        $target_ideal = 33;
+                    elseif ($jenjang == 'S2')
+                        $target_ideal = 50;
+                    elseif ($jenjang == 'S3')
+                        $target_ideal = 33;
+
+                    foreach ($distinct_angkatan as $ang) {
+                        $thn = $ang['tahun_masuk'];
+
+                        // Denominator: Total Mahasiswa Per Angkatan
+                        $total_mhs_angkatan = $db->table('tb_m_mahasiswa')
+                            ->where('kode_prodi', $kode_prodi_target)
+                            ->where('tahun_masuk', $thn)
+                            ->countAllResults();
+
+                        // Numerator: Lulusan Tepat Waktu (Filtered by Triwulan Selected)
+                        // Karena IKU biasanya kumulatif setahun, kita ambil data lulusan yang ada di triwulan ini.
+                        // Namun biasanya "Capaian Triwulan 1" = data s.d Triwulan 1.
+                        // Sesuai request user: "klik triwulan 2 maka data ditampilkan berdasarkan triwulan nya".
+                        // Kita filter by id_triwulan (persis data yang diinput di triwulan tsb).
+                        $jumlah_tepat = $db->table('tb_iku_1_lulusan l')
+                            ->join('tb_m_mahasiswa m', 'm.nim = l.nim')
+                            ->where('m.kode_prodi', $kode_prodi_target)
+                            ->where('m.tahun_masuk', $thn)
+                            ->where('l.status_kelulusan', 'Tepat Waktu')
+                            ->where('l.id_triwulan', $id_triwulan_selected) // Filter Triwulan
+                            ->countAllResults();
+
+                        if ($total_mhs_angkatan > 0) {
+                            $realisasi = ($jumlah_tepat / $total_mhs_angkatan) * 100;
+                            $capaian_cohort = ($realisasi / $target_ideal) * 100;
+
+                            $total_capaian += $capaian_cohort;
+                            $count_angkatan++;
+                        }
+                    }
+
+                    if ($count_angkatan > 0) {
+                        $persentase = round($total_capaian / $count_angkatan);
+                    } else {
+                        $persentase = 0;
+                    }
+                }
+            } else {
+                // Dummy for other IKUs for now (rand 0-100 logic replaced with 0 or keep random if preferred placeholder)
+                $persentase = rand(10, 90);
+            }
+
+            $iku_data[] = [
+                'kode' => 'IKU ' . $m['kode'],
+                'nama' => $m['indikator'],
+                'persentase' => $persentase,
+                'sasaran' => $m['sasaran'],
+                'icon' => $m['kode'] == '1' ? 'school-outline' : 'stats-chart-outline', // Custom icon for IKU 1
             ];
         }
 
@@ -821,7 +927,9 @@ class AdminController extends BaseController
             'jenjang' => $jenjang,
             'jurusan_kode' => $jurusan_kode,
             'iku_data' => $iku_data,
-            'prodi' => $found
+            'prodi' => $found,
+            'triwulan_list' => $triwulan_list,
+            'id_triwulan_selected' => $id_triwulan_selected
         ];
 
         return view('admin/iku_prodi', $data);
@@ -838,83 +946,235 @@ class AdminController extends BaseController
         $map = $jurusanModel->getMap();
         $nama_jurusan = $map[$jurusan_kode] ?? $jurusan_kode;
 
-        // Simulasi detail data
-        $detail = [
-            'iku' => rawurldecode($iku_code),
-            'deskripsi' => 'Deskripsi/penjelasan untuk ' . rawurldecode($iku_code) . '.',
-            'nilai' => rand(40, 98),
-            'target' => 85,
-            'catatan' => 'Data masih simulasi karena belum ada penyimpanan IKU di database.'
-        ];
-
-        // Prepare view-specific data dependent on IKU code
         $decoded_iku = rawurldecode($iku_code);
-        // Map some IKU codes to human-friendly titles (fall back to kode itself)
-        $iku_titles = [
-            'IKU 1.1' => 'IKU 1.1: Capaian Lulusan',
-            'IKU 1.2' => 'IKU 1.2: Pengalaman Mahasiswa di Luar Prodi',
-            'IKU 2.1' => 'IKU 2.1: Kegiatan Dosen di Luar Kampus',
-            'IKU 2.2' => 'IKU 2.2: Kualifikasi Dosen & Praktisi',
-            'IKU 2.3' => 'IKU 2.3: Hasil Karya Dosen',
-            'IKU 3.1' => 'IKU 3.1: Kerjasama Program Studi',
-            'IKU 3.2' => 'IKU 3.2: Metode Pembelajaran',
-            'IKU 3.3' => 'IKU 3.3: Akreditasi Internasional',
+
+        // Default Metadata
+        $meta_iku = [
+            'kode' => $decoded_iku,
+            'indikator' => 'Indikator Kinerja Utama',
+            'sasaran' => 'Sasaran Strategis',
+            'deskripsi' => 'Deskripsi belum tersedia.'
         ];
 
-        $iku_title = $iku_titles[$decoded_iku] ?? $decoded_iku;
+        // Custom Metadata per IKU (Bisa dipindah ke Model/Config nanti)
+        if (stripos($decoded_iku, '1') !== false) {
+            $meta_iku = [
+                'kode' => 'IKU 1',
+                'indikator' => 'Angka Efisiensi Edukasi (AEE)',
+                'sasaran' => 'Meningkatnya Kualitas Lulusan Pendidikan Tinggi Vokasi',
+                'deskripsi' => 'Persentase mahasiswa yang lulus tepat waktu sesuai jenjang studinya.'
+            ];
+        } elseif (stripos($decoded_iku, '2') !== false) {
+            $meta_iku = [
+                'kode' => 'IKU 2',
+                'indikator' => 'Mahasiswa Mendapat Pengalaman di Luar Kampus',
+                'sasaran' => 'Meningkatnya Kualitas Lulusan Pendidikan Tinggi Vokasi',
+                'deskripsi' => 'Persentase mahasiswa yang menghabiskan paling sedikit 20 SKS di luar kampus atau meraih prestasi minimal tingkat nasional.'
+            ];
+        }
 
-        // Default triwulan text (could be made dynamic)
-        $triwulan_text = 'TW 1 (Januari - Maret 2025)';
+        // Simulasi detail data (Merge dengan meta)
+        $detail = [
+            'iku' => $meta_iku['kode'],
+            'deskripsi' => $meta_iku['deskripsi'],
+            'sasaran' => $meta_iku['sasaran'],
+            'indikator' => $meta_iku['indikator'], // Pass indikator too
+            'nilai' => rand(40, 98), // Nanti di-overwrite logic bawah
+            'target' => 85,
+            'catatan' => 'Data Real.'
+        ];
 
-        // Ambil data IKU dari Table Master
-        // ... (Mapping Code sebelumnya)
+        $iku_title = $meta_iku['kode'] . ': ' . $meta_iku['indikator'];
 
-        // LOGIKA PERUBAHAN: Ambil data Real dari Tabel iku_satu_satu jika IKU == 2 (Lulusan)
-        // Note: User menyebutnya IKU 1 di chat terakhir, tapi secara teknis di Master IKU dia IKU 2.
-        // Kita cek fleksibel.
+
+        // Default triwulan text but updated from DB if param exists
+        $request = \Config\Services::request();
+        $db = \Config\Database::connect();
+
+        // Logic Triwulan
+        $id_triwulan = $request->getGet('id_triwulan');
+        if ($id_triwulan) {
+            $active_triwulan = $db->table('triwulan')->where('id', $id_triwulan)->get()->getRowArray();
+        } else {
+            $active_triwulan = $db->table('triwulan')->where('status', 'Aktif')->get()->getRowArray();
+        }
+
+        // Mapping Manual (Since column periode missing)
+        $triwulan_names = [
+            1 => 'Januari - Maret',
+            2 => 'April - Juni',
+            3 => 'Juli - September',
+            4 => 'Oktober - Desember'
+        ];
+        $periode = $triwulan_names[$active_triwulan['id'] ?? 1] ?? 'Periode Tidak Diketahui';
+        $triwulan_text = 'TW ' . ($active_triwulan['nama_triwulan'] ?? '1') . ' (' . $periode . ' ' . date('Y') . ')';
 
         $data_list = [];
-        $table_headers = []; // Initialize here
+        $table_headers = [];
 
         // ==== IKU 1 (AEE) ====
         if (stripos($decoded_iku, '1') !== false) {
-            $iku_model = new \App\Models\Iku1AeeModel();
+            // Gunakan Query Builder Manual
+            $prodiModel = new \App\Models\ProdiModel();
+
+            // 1. Cari Kode Prodi berdasarkan Nama & Jenjang
+            $prodi = $prodiModel->where('nama_prodi', rawurldecode($nama_prodi))
+                ->where('jenjang', $jenjang)
+                ->first();
+
+            $kode_prodi_target = $prodi['kode_prodi'] ?? null;
+            $data_list = [];
+
+            // Header Tabel Detail
             $table_headers = [
+                'nama' => 'MAHASISWA',
+                'nim' => 'NIM',
                 'tahun_masuk' => 'ANGKATAN',
-                'jml_mhs_masuk' => 'MAHASISWA MASUK',
-                'jml_lulus_tepat_waktu' => 'LULUS TEPAT WAKTU',
-                'aee_realisasi' => 'AEE REALISASI (%)',
-                'aee_ideal' => 'TARGET IDEAL (%)',
-                'capaian' => 'CAPAIAN (%)'
+                'masa_studi' => 'MASA STUDI',
+                'yudisium' => 'TGL LULUS',
+                'status' => 'STATUS IKU',
+                'aksi' => 'AKSI'
             ];
 
-            $raw_data = $iku_model->where('prodi', rawurldecode($nama_prodi))
-                ->orderBy('tahun_masuk', 'DESC')
-                ->findAll();
+            if ($kode_prodi_target) {
+                // 2. Query Detail Lulusan (Filter by Triwulan)
+                $builder = $db->table('tb_iku_1_lulusan')
+                    ->select('tb_iku_1_lulusan.id as id_iku, tb_iku_1_lulusan.*, tb_m_mahasiswa.nama_lengkap, tb_m_mahasiswa.tahun_masuk')
+                    ->join('tb_m_mahasiswa', 'tb_m_mahasiswa.nim = tb_iku_1_lulusan.nim')
+                    ->where('tb_m_mahasiswa.kode_prodi', $kode_prodi_target);
 
-            $data_list = [];
-            $total_capaian = 0;
-            $count = 0;
+                // Apply Triwulan Filter
+                if (!empty($active_triwulan['id'])) {
+                    $builder->where('tb_iku_1_lulusan.id_triwulan', $active_triwulan['id']);
+                }
 
-            foreach ($raw_data as $row) {
-                $data_list[] = [
-                    'tahun_masuk' => $row['tahun_masuk'],
-                    'jml_mhs_masuk' => $row['jml_mhs_masuk'],
-                    'jml_lulus_tepat_waktu' => $row['jml_lulus_tepat_waktu'],
-                    'aee_realisasi' => number_format($row['aee_realisasi'], 2),
-                    'aee_ideal' => number_format($row['aee_ideal'], 2),
-                    // Color code capaian
-                    'capaian' => ($row['capaian'] >= 100)
-                        ? '<span class="text-green-600 font-bold">' . number_format($row['capaian'], 2) . '</span>'
-                        : '<span class="text-red-500 font-bold">' . number_format($row['capaian'], 2) . '</span>'
-                ];
-                $total_capaian += $row['capaian'];
-                $count++;
+                $queryLulus = $builder->orderBy('tb_m_mahasiswa.tahun_masuk', 'DESC')
+                    ->orderBy('tb_m_mahasiswa.nama_lengkap', 'ASC')
+                    ->get()->getResultArray();
+
+                // Setup new simplified calculation logic (Cohort Based) - SAME AS DASHBOARD
+                // We need to calculate achievement based on COHORTS, not just list of graduates.
+                // ... (Keeping existing list logic first) ... #
+
+                // 3. Gabungkan Data untuk View
+                $total_tepat_filtered = 0;
+                $total_records = count($queryLulus);
+
+                foreach ($queryLulus as $row) {
+                    // Format Masa Studi
+                    $bln = (int) $row['masa_studi_bulan'];
+                    $thn = floor($bln / 12);
+                    $sisa_bln = $bln % 12;
+                    $masa_studi_text = "{$thn} Thn {$sisa_bln} Bln";
+
+                    // Hitung Stats untuk Card Atas (dari data yg tampil)
+                    if ($row['status_kelulusan'] == 'Tepat Waktu') {
+                        $total_tepat_filtered++;
+                    }
+
+                    // Format Badge Status
+                    $status_badge = ($row['status_kelulusan'] == 'Tepat Waktu')
+                        ? '<span class="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">Tepat Waktu</span>'
+                        : '<span class="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold">Terlambat</span>';
+
+                    // Tombol Aksi
+                    $deleteUrl = base_url('admin/iku1/delete/' . $row['id_iku']) . "?redirect_to=" . urlencode(current_url() . '?id_triwulan=' . ($id_triwulan ?? ''));
+                    $editUrl = base_url('admin/iku1/edit/' . $row['id_iku']);
+
+                    $aksi = '<div class="flex items-center space-x-2">';
+                    $aksi .= '<a href="' . $editUrl . '" class="text-blue-500 hover:text-blue-700 transition" title="Edit Data"><ion-icon name="create-outline" class="text-xl"></ion-icon></a>';
+                    $aksi .= '<a href="' . $deleteUrl . '" onclick="return confirm(\'Yakin hapus?\')" class="text-red-500 hover:text-red-700 transition" title="Hapus Data"><ion-icon name="trash-outline" class="text-xl"></ion-icon></a>';
+                    $aksi .= '</div>';
+                    // Note: Edit feature can be added later if needed, Delete is priority.
+
+                    $data_list[] = [
+                        'nama' => '<div class="font-bold text-gray-800">' . esc($row['nama_lengkap']) . '</div>',
+                        'nim' => '<div class="text-xs text-gray-500 font-mono">' . esc($row['nim']) . '</div>',
+                        'tahun_masuk' => $row['tahun_masuk'],
+                        'masa_studi' => $masa_studi_text,
+                        'yudisium' => date('d M Y', strtotime($row['tanggal_yudisium'])),
+                        'status' => $status_badge,
+                        'aksi' => $aksi
+                    ];
+                }
+
+                // Kalkulasi Capaian AEE Prodi Ini
+                // Kalkulasi Capaian AEE (LOGIKA BARU - Per Angkatan)
+                // Kalkulasi Capaian AEE Prodi Ini
+                // Kalkulasi Capaian AEE (LOGIKA BARU - Per Angkatan FILTERED)
+                $unique_angkatan = array_unique(array_column($queryLulus, 'tahun_masuk'));
+
+                // Jika list kosong (misal Triwulan ini belum ada lulusan), 
+                // kita tetap harus hitung AEE berdasarkan populasi Angkatan database utk Triwulan ini?
+                // Idealnya:
+                // 1. Ambil semua angkatan aktif prodi ini.
+                // 2. Hitung lulusan di triwulan ini.
+                // 3. Hitung AEE.
+
+                $distinct_angkatan = $db->table('tb_m_mahasiswa')
+                    ->select('tahun_masuk')
+                    ->where('kode_prodi', $kode_prodi_target)
+                    ->distinct()
+                    ->orderBy('tahun_masuk', 'DESC')
+                    ->get()->getResultArray();
+
+                $sum_capaian = 0;
+                $count_cohort = 0;
+
+                // Tentukan Target Ideal (Sama untuk semua angkatan di prodi ini)
+                $jenjang_upper = strtoupper($jenjang);
+                $aee_ideal = 25;
+                if (strpos($jenjang_upper, 'D3') !== false || strpos($jenjang_upper, 'DIII') !== false) {
+                    $aee_ideal = 33;
+                } elseif (strpos($jenjang_upper, 'S2') !== false) {
+                    $aee_ideal = 50;
+                }
+
+                if (!empty($distinct_angkatan)) {
+                    foreach ($distinct_angkatan as $tm_row) {
+                        $tm = $tm_row['tahun_masuk'];
+
+                        // A. Ambil Total Mahasiswa Angkatan (Denominator)
+                        $total_mhs_angkatan = $db->table('tb_m_mahasiswa')
+                            ->where('kode_prodi', $kode_prodi_target)
+                            ->where('tahun_masuk', $tm)
+                            ->countAllResults();
+
+                        // B. Ambil Jumlah Tepat Waktu Cumulative (Numerator) - FILTERED BY TRIWULAN
+                        $queryTepat = $db->table('tb_iku_1_lulusan')
+                            ->join('tb_m_mahasiswa', 'tb_m_mahasiswa.nim = tb_iku_1_lulusan.nim')
+                            ->where('tb_m_mahasiswa.kode_prodi', $kode_prodi_target)
+                            ->where('tb_m_mahasiswa.tahun_masuk', $tm)
+                            ->where('tb_iku_1_lulusan.status_kelulusan', 'Tepat Waktu');
+
+                        if (!empty($active_triwulan['id'])) {
+                            $queryTepat->where('tb_iku_1_lulusan.id_triwulan', $active_triwulan['id']);
+                        }
+
+                        $jum_tepat_waktu = $queryTepat->countAllResults();
+
+                        // C. Hitung Realisasi
+                        $realisasi = ($total_mhs_angkatan > 0) ? ($jum_tepat_waktu / $total_mhs_angkatan) * 100 : 0;
+
+                        // D. Hitung Capaian
+                        $capaian = ($aee_ideal > 0) ? ($realisasi / $aee_ideal) * 100 : 0;
+
+                        // Only count cohort if they have students? Or count all?
+                        // If total_mhs > 0, we count it.
+                        if ($total_mhs_angkatan > 0) {
+                            $sum_capaian += $capaian;
+                            $count_cohort++;
+                        }
+                    }
+                }
+
+                $capaian_akhir = ($count_cohort > 0) ? ($sum_capaian / $count_cohort) : 0;
+
+                // Update Detail Array untuk Cards
+                $detail['nilai'] = number_format($capaian_akhir, 0); // Round to integer for UI
+                $detail['total_data'] = $total_records;
+                $detail['total_memenuhi'] = $total_tepat_filtered;
             }
-
-            // Update Stats for IKU 1
-            $avg_capaian = $count > 0 ? $total_capaian / $count : 0;
-            $detail['nilai'] = number_format($avg_capaian, 2);
 
             // Override Button Text
             $data['tambah_button_text'] = 'Tambah Data AEE';
@@ -1009,8 +1269,11 @@ class AdminController extends BaseController
             'triwulan_text' => $triwulan_text,
             'table_headers' => $table_headers,
             'data_list' => $data_list,
-            'tambah_button_text' => 'Tambah Data Lulusan',
-            'back_url' => site_url('admin/iku-prodi/' . $jurusan_kode . '/' . rawurlencode($nama_prodi) . '/' . $jenjang)
+            'tambah_button_text' => $data['tambah_button_text'] ?? 'Tambah Data Lulusan',
+            'back_url' => site_url('admin/iku-prodi/' . $jurusan_kode . '/' . rawurlencode($nama_prodi) . '/' . $jenjang),
+            // Export context
+            'kode_prodi' => $kode_prodi_target ?? '',
+            'id_triwulan' => $active_triwulan['id'] ?? ''
         ];
 
         return view('admin/iku_detail', $data);
@@ -1079,6 +1342,9 @@ class AdminController extends BaseController
             'page' => 'jurusan',
             'nama_jurusan' => $nama_jurusan,
             'jurusan_kode' => $jurusan_kode,
+            'prodi_list' => $prodi_list,
+            'total_prodi' => $total_prodi,
+            'rata_rata_capaian' => $rata
         ];
 
         return view('admin/prodi_capaian', $data);

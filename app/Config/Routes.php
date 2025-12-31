@@ -91,6 +91,25 @@ $routes->group('admin', ['filter' => 'admin-auth'], static function ($routes) {
 
     // URL: /admin/iku
     // $routes->get('iku', 'AdminController::iku');
+
+    // == IMPORT IKU 1 ==
+    $routes->get('iku1/import', 'ImportIku1::index');
+    $routes->post('iku1/preview', 'ImportIku1::preview');
+    $routes->post('iku1/save_data', 'ImportIku1::save_data');
+    $routes->get('iku1/download_template', 'ImportIku1::download_template');
+    $routes->get('iku1/export', 'ImportIku1::export');
+    $routes->get('setup-iku2-db', 'AdminController::setup_iku2_db');
+
+    // == INPUT MANUAL IKU 1 ==
+    // Use (:any) to catch optional parameters (Jurusan/Prodi/Jenjang)
+    $routes->get('iku1/input', 'Iku1Controller::create');
+    $routes->get('iku1/input/(:any)', 'Iku1Controller::create/$1');
+    $routes->post('iku1/store', 'Iku1Controller::store');
+    $routes->get('iku1/edit/(:num)', 'Iku1Controller::edit/$1');
+    $routes->post('iku1/update/(:num)', 'Iku1Controller::update/$1');
+    $routes->get('iku1/check_nim/(:any)', 'Iku1Controller::check_nim/$1');
+    $routes->get('iku1/delete/(:num)', 'Iku1Controller::delete/$1');
+    $routes->get('iku1/dashboard', 'Iku1Controller::index');
 });
 
 
