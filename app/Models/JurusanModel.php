@@ -6,7 +6,7 @@ use CodeIgniter\Model;
 
 class JurusanModel extends Model
 {
-    protected $table      = 'jurusan';
+    protected $table = 'jurusan';
     protected $primaryKey = 'id';
     protected $allowedFields = ['kode_jurusan', 'nama_jurusan', 'lokasi', 'status', 'created_at', 'updated_at', 'deleted_at'];
     protected $useTimestamps = true;
@@ -20,6 +20,7 @@ class JurusanModel extends Model
         $out = [];
         foreach ($rows as $r) {
             $out[] = [
+                'id' => $r['id'],
                 'kode' => $r['kode_jurusan'],
                 'nama' => $r['nama_jurusan']
             ];

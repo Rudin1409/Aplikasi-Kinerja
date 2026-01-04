@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Dec 25, 2025 at 09:41 AM
+-- Generation Time: Jan 04, 2026 at 01:35 PM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.28
 
@@ -167,13 +167,57 @@ INSERT INTO `prodi` (`id`, `jurusan_id`, `kode_prodi`, `nama_prodi`, `jenjang`, 
 
 CREATE TABLE `tb_iku_1_lulusan` (
   `id` int NOT NULL,
-  `nim` varchar(20) NOT NULL,
+  `nim` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
   `id_triwulan` int NOT NULL,
   `tanggal_yudisium` date NOT NULL,
   `masa_studi_bulan` int DEFAULT NULL,
-  `status_kelulusan` enum('Tepat Waktu','Terlambat') DEFAULT NULL,
+  `status_kelulusan` enum('Tepat Waktu','Terlambat') COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tb_iku_1_lulusan`
+--
+
+INSERT INTO `tb_iku_1_lulusan` (`id`, `nim`, `id_triwulan`, `tanggal_yudisium`, `masa_studi_bulan`, `status_kelulusan`, `created_at`) VALUES
+(1, '062430801658', 1, '2027-09-25', 36, 'Tepat Waktu', '2025-12-25 10:24:17'),
+(35, '62030311001', 1, '2024-08-05', 47, 'Tepat Waktu', '2025-12-31 17:32:21'),
+(36, '62030311002', 1, '2024-08-26', 47, 'Tepat Waktu', '2025-12-31 17:32:21'),
+(37, '62030311003', 1, '2024-09-15', 48, 'Tepat Waktu', '2025-12-31 17:32:21');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tb_iku_2_lulusan`
+--
+
+CREATE TABLE `tb_iku_2_lulusan` (
+  `id` int UNSIGNED NOT NULL,
+  `nim` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
+  `id_triwulan` int UNSIGNED NOT NULL DEFAULT '1',
+  `jenis_aktivitas` enum('Bekerja','Wirausaha','Lanjut Studi','Mencari Kerja') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Mencari Kerja',
+  `nama_tempat` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `provinsi_tempat_kerja` int DEFAULT NULL COMMENT 'FK to tb_ref_ump.id',
+  `tanggal_mulai` date DEFAULT NULL,
+  `gaji_bulan` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `masa_tunggu_bulan` int NOT NULL DEFAULT '0',
+  `posisi_wirausaha` enum('Pendiri','Freelance') COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `bukti_validasi` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `status_validasi` enum('Valid','Invalid','Menunggu') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Menunggu',
+  `nilai_bobot` decimal(3,2) NOT NULL DEFAULT '0.00',
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tb_iku_2_lulusan`
+--
+
+INSERT INTO `tb_iku_2_lulusan` (`id`, `nim`, `id_triwulan`, `jenis_aktivitas`, `nama_tempat`, `provinsi_tempat_kerja`, `tanggal_mulai`, `gaji_bulan`, `masa_tunggu_bulan`, `posisi_wirausaha`, `bukti_validasi`, `status_validasi`, `nilai_bobot`, `created_at`, `updated_at`) VALUES
+(40, '62030311001', 1, 'Bekerja', 'PT. Tekno Digital Jaya', 11, '2024-01-10', 6500000.00, 6, NULL, NULL, '', 0.60, NULL, NULL),
+(42, '62030311003', 1, 'Lanjut Studi', 'Institut Teknologi Bandung', NULL, '2024-09-28', 0.00, 0, NULL, NULL, '', 1.00, NULL, NULL),
+(44, '62030311002', 1, 'Wirausaha', 'Kopi Senja Nusantara', NULL, '2024-09-30', 0.00, 1, 'Pendiri', NULL, 'Menunggu', 0.75, '2025-12-31 10:38:28', '2025-12-31 10:38:28'),
+(45, '062430801658', 1, 'Bekerja', 'PT DIGITALKU', 6, '2027-11-22', 5000000.00, 1, NULL, NULL, 'Menunggu', 1.00, '2025-12-31 12:22:24', '2025-12-31 12:22:24');
 
 -- --------------------------------------------------------
 
@@ -256,19 +300,30 @@ CREATE TABLE `tb_m_dosen` (
 --
 
 CREATE TABLE `tb_m_mahasiswa` (
-  `nim` varchar(20) NOT NULL,
-  `nama_lengkap` varchar(255) NOT NULL,
-  `nik` varchar(20) DEFAULT NULL,
-  `kode_prodi` varchar(20) NOT NULL,
+  `nim` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
+  `nama_lengkap` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `nik` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `kode_prodi` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
   `tahun_masuk` int NOT NULL,
-  `semester_masuk` enum('Ganjil','Genap') DEFAULT 'Ganjil',
-  `jenis_kelamin` enum('L','P') DEFAULT NULL,
-  `email` varchar(100) DEFAULT NULL,
-  `no_hp` varchar(20) DEFAULT NULL,
-  `status` enum('Aktif','Lulus','Cuti','DO','Non-Aktif') DEFAULT 'Aktif',
+  `tanggal_yudisium` date DEFAULT NULL,
+  `semester_masuk` enum('Ganjil','Genap') COLLATE utf8mb4_general_ci DEFAULT 'Ganjil',
+  `jenis_kelamin` enum('L','P') COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `email` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `no_hp` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `status` enum('Aktif','Lulus','Cuti','DO','Non-Aktif') COLLATE utf8mb4_general_ci DEFAULT 'Aktif',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tb_m_mahasiswa`
+--
+
+INSERT INTO `tb_m_mahasiswa` (`nim`, `nama_lengkap`, `nik`, `kode_prodi`, `tahun_masuk`, `tanggal_yudisium`, `semester_masuk`, `jenis_kelamin`, `email`, `no_hp`, `status`, `created_at`, `updated_at`) VALUES
+('062430801658', 'M BAHRUDIN', '1605161409060001', 'ABG', 2024, '2027-09-25', 'Ganjil', 'L', 'muhammadbahrudin1409@gmail.com', '081216621271', 'Lulus', '2025-12-25 10:24:17', '2025-12-31 03:57:44'),
+('62030311001', 'AHMAD SUKSES', NULL, 'ABG', 2020, '2024-08-05', 'Ganjil', NULL, NULL, NULL, 'Lulus', '2025-12-31 10:17:34', '2025-12-31 10:32:21'),
+('62030311002', 'SITI PENGUSAHA', NULL, 'ABG', 2020, '2024-08-26', 'Ganjil', NULL, NULL, NULL, 'Lulus', '2025-12-31 10:17:34', '2025-12-31 10:32:21'),
+('62030311003', 'BUDI SARJANA', NULL, 'ABG', 2020, '2024-09-15', 'Ganjil', NULL, NULL, NULL, 'Lulus', '2025-12-31 10:17:34', '2025-12-31 10:32:21');
 
 -- --------------------------------------------------------
 
@@ -293,20 +348,54 @@ CREATE TABLE `tb_m_mitra` (
 
 CREATE TABLE `tb_ref_ump` (
   `id` int NOT NULL,
-  `provinsi` varchar(100) NOT NULL,
+  `provinsi` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
   `tahun` int NOT NULL,
   `nilai_ump` decimal(15,2) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tb_ref_ump`
 --
 
 INSERT INTO `tb_ref_ump` (`id`, `provinsi`, `tahun`, `nilai_ump`) VALUES
-(1, 'Sumatera Selatan', 2025, 3456874.00),
-(2, 'DKI Jakarta', 2025, 5067381.00),
-(3, 'Sumatera Selatan', 2025, 3456874.00),
-(4, 'DKI Jakarta', 2025, 5067381.00);
+(1, 'Aceh', 2025, 3685615.00),
+(2, 'Sumatera Utara', 2025, 2992599.00),
+(3, 'Sumatera Barat', 2025, 2994193.00),
+(4, 'Riau', 2025, 3508775.00),
+(5, 'Jambi', 2025, 3234533.00),
+(6, 'Sumatera Selatan', 2025, 3942963.00),
+(7, 'Bengkulu', 2025, 2670039.00),
+(8, 'Lampung', 2025, 2893069.00),
+(9, 'Kep. Bangka Belitung', 2025, 3876600.00),
+(10, 'Kepulauan Riau', 2025, 3623653.00),
+(11, 'DKI Jakarta', 2025, 5396761.00),
+(12, 'Jawa Barat', 2025, 2191238.00),
+(13, 'Jawa Tengah', 2025, 2169348.00),
+(14, 'DI Yogyakarta', 2025, 2264080.00),
+(15, 'Jawa Timur', 2025, 2305984.00),
+(16, 'Banten', 2025, 2905119.00),
+(17, 'Bali', 2025, 2996560.00),
+(18, 'Nusa Tenggara Barat', 2025, 2602931.00),
+(19, 'Nusa Tenggara Timur', 2025, 2328969.00),
+(20, 'Kalimantan Barat', 2025, 2878286.00),
+(21, 'Kalimantan Tengah', 2025, 3473621.00),
+(22, 'Kalimantan Selatan', 2025, 3496194.00),
+(23, 'Kalimantan Timur', 2025, 3579313.00),
+(24, 'Kalimantan Utara', 2025, 3580160.00),
+(25, 'Sulawesi Utara', 2025, 3775425.00),
+(26, 'Sulawesi Tengah', 2025, 2914583.00),
+(27, 'Sulawesi Selatan', 2025, 3657527.00),
+(28, 'Sulawesi Tenggara', 2025, 3073551.00),
+(29, 'Gorontalo', 2025, 3221731.00),
+(30, 'Sulawesi Barat', 2025, 3104430.00),
+(31, 'Maluku', 2025, 3141699.00),
+(32, 'Maluku Utara', 2025, 3408000.00),
+(33, 'Papua', 2025, 4285848.00),
+(34, 'Papua Tengah', 2025, 4285848.00),
+(35, 'Papua Pegunungan', 2025, 4285848.00),
+(36, 'Papua Selatan', 2025, 4285848.00),
+(37, 'Papua Barat', 2025, 3615000.00),
+(38, 'Papua Barat Daya', 2025, 3615000.00);
 
 -- --------------------------------------------------------
 
@@ -397,6 +486,15 @@ ALTER TABLE `tb_iku_1_lulusan`
   ADD KEY `id_triwulan` (`id_triwulan`);
 
 --
+-- Indexes for table `tb_iku_2_lulusan`
+--
+ALTER TABLE `tb_iku_2_lulusan`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_nim` (`nim`),
+  ADD KEY `idx_triwulan` (`id_triwulan`),
+  ADD KEY `idx_aktivitas` (`jenis_aktivitas`);
+
+--
 -- Indexes for table `tb_iku_2_tracer`
 --
 ALTER TABLE `tb_iku_2_tracer`
@@ -485,7 +583,13 @@ ALTER TABLE `prodi`
 -- AUTO_INCREMENT for table `tb_iku_1_lulusan`
 --
 ALTER TABLE `tb_iku_1_lulusan`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+
+--
+-- AUTO_INCREMENT for table `tb_iku_2_lulusan`
+--
+ALTER TABLE `tb_iku_2_lulusan`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT for table `tb_iku_2_tracer`
@@ -515,7 +619,7 @@ ALTER TABLE `tb_m_mitra`
 -- AUTO_INCREMENT for table `tb_ref_ump`
 --
 ALTER TABLE `tb_ref_ump`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT for table `triwulan`

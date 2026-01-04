@@ -16,7 +16,7 @@ class MahasiswaModel extends Model
         'kode_prodi',
         'tahun_masuk',
         'status',
-        // Add other fields if necessary based on schema
+        'tanggal_yudisium', // <-- CRITICAL FIX: Required for IKU 2 update
         'nik',
         'semester_masuk',
         'jenis_kelamin',

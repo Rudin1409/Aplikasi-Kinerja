@@ -70,7 +70,36 @@
         </div>
 
         <?php if (session()->get('role') == 'admin'): ?>
-            <div>
+            <div class="flex space-x-2">
+                <!-- Master Data Dropdown Button -->
+                <div class="relative" id="masterdata-dropdown-container">
+                    <button id="masterdata-dropdown-btn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition duration-300">
+                        <ion-icon name="folder-open-outline" class="text-xl"></ion-icon>
+                        <span>Master Data</span>
+                        <ion-icon name="chevron-down-outline" class="text-sm"></ion-icon>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="masterdata-dropdown-menu"
+                        class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 border border-gray-200">
+                        <a href="<?= base_url('admin/mahasiswa?prodi=' . urlencode($nama_prodi) . '&jenjang=' . urlencode($jenjang) . '&jurusan=' . $jurusan_kode) ?>"
+                            class="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <ion-icon name="people-circle-outline" class="text-lg"></ion-icon>
+                            <span>Mahasiswa</span>
+                        </a>
+                        <a href="<?= base_url('admin/dosen?prodi=' . urlencode($nama_prodi) . '&jenjang=' . urlencode($jenjang) . '&jurusan=' . $jurusan_kode) ?>"
+                            class="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <ion-icon name="person-outline" class="text-lg"></ion-icon>
+                            <span>Dosen</span>
+                        </a>
+                        <a href="<?= base_url('admin/mitra?prodi=' . urlencode($nama_prodi) . '&jenjang=' . urlencode($jenjang) . '&jurusan=' . $jurusan_kode) ?>"
+                            class="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition">
+                            <ion-icon name="briefcase-outline" class="text-lg"></ion-icon>
+                            <span>Mitra</span>
+                        </a>
+                    </div>
+                </div>
+
                 <button
                     class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition duration-300">
                     <ion-icon name="lock-closed-outline" class="text-xl"></ion-icon>
@@ -144,5 +173,26 @@
     <?php endforeach; ?>
 
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('masterdata-dropdown-btn');
+        const menu = document.getElementById('masterdata-dropdown-menu');
+
+        if (btn && menu) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                menu.classList.toggle('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function (e) {
+                if (!menu.classList.contains('hidden') && !menu.contains(e.target) && e.target !== btn) {
+                    menu.classList.add('hidden');
+                }
+            });
+        }
+    });
+</script>
 
 <?= $this->endSection() ?>

@@ -11,126 +11,9 @@ class Iku1Controller extends BaseController
 {
     public function index()
     {
-        $db = \Config\Database::connect();
-
-        // 1. Ambil Triwulan Aktif (Default Filter)
-        $active_triwulan = $db->table('triwulan')->where('status', 'Aktif')->get()->getRowArray();
-        $id_triwulan = $active_triwulan['id'] ?? null;
-
-        // Jika tidak ada triwulan aktif, mungkin ambil yang terakhir? 
-        // Sementara biarkan kosong resultnya kalau tidak ada aktif.
-
-        // 2. Query Utama (JOIN)
-        $builder = $db->table('tb_iku_1_lulusan');
-        $builder->select('tb_iku_1_lulusan.*, tb_m_mahasiswa.nama_lengkap, tb_m_mahasiswa.tahun_masuk, prodi.nama_prodi, prodi.jenjang');
-        $builder->join('tb_m_mahasiswa', 'tb_m_mahasiswa.nim = tb_iku_1_lulusan.nim');
-        $builder->join('prodi', 'tb_m_mahasiswa.kode_prodi = prodi.kode_prodi');
-
-        if ($id_triwulan) {
-            $builder->where('tb_iku_1_lulusan.id_triwulan', $id_triwulan);
-        }
-
-        $data_lulusan = $builder->get()->getResultArray();
-
-        // 3. Hitung Statistik Cards & Chart (LOGIKA BARU SESUAI PANDUAN 2025)
-        $total_lulusan = count($data_lulusan);
-        $total_tepat = 0;
-        $total_terlambat = 0;
-
-        $cohort_stats = [];
-
-        foreach ($data_lulusan as &$row) {
-            // Count Tepat/Terlambat for Table Display (Pure Counter)
-            if ($row['status_kelulusan'] == 'Tepat Waktu') {
-                $total_tepat++;
-            } else {
-                $total_terlambat++;
-            }
-
-            // Format Masa Studi
-            $bln = (int) $row['masa_studi_bulan'];
-            $thn = floor($bln / 12);
-            $sisa_bln = $bln % 12;
-            $row['masa_studi_text'] = "{$thn} Tahun {$sisa_bln} Bulan";
-
-            // Kumpulkan Data per Angkatan (Cohort) untuk Kalkulasi IKU
-            $key = $row['kode_prodi'] . '-' . $row['tahun_masuk'];
-            if (!isset($cohort_stats[$key])) {
-                $cohort_stats[$key] = [
-                    'kode_prodi' => $row['kode_prodi'],
-                    'tahun_masuk' => $row['tahun_masuk'],
-                    'jenjang' => $row['jenjang']
-                ];
-            }
-        }
-
-        // 4. Hitung Capaian Per Angkatan (Realisasi / Target * 100)
-        $sum_capaian = 0;
-        $count_cohort = 0;
-
-        foreach ($cohort_stats as $cohort) {
-            $tm = $cohort['tahun_masuk'];
-            $kp = $cohort['kode_prodi'];
-            $jenjang = strtoupper($cohort['jenjang']);
-
-            // A. Ambil Total Mahasiswa Angkatan (Denominator)
-            $total_mhs_angkatan = $db->table('tb_m_mahasiswa')
-                ->where('kode_prodi', $kp)
-                ->where('tahun_masuk', $tm)
-                ->countAllResults();
-
-            // B. Ambil Jumlah Tepat Waktu Cumulative (Numerator)
-            // Mengambil semua lulusan tepat waktu dari angkatan tsb (tidak hanya triwulan ini) agar fair
-            $jum_tepat_waktu = $db->table('tb_iku_1_lulusan')
-                ->join('tb_m_mahasiswa', 'tb_m_mahasiswa.nim = tb_iku_1_lulusan.nim')
-                ->where('tb_m_mahasiswa.kode_prodi', $kp)
-                ->where('tb_m_mahasiswa.tahun_masuk', $tm)
-                ->where('tb_iku_1_lulusan.status_kelulusan', 'Tepat Waktu')
-                ->countAllResults();
-
-            // C. Hitung Realisasi
-            $realisasi = ($total_mhs_angkatan > 0) ? ($jum_tepat_waktu / $total_mhs_angkatan) * 100 : 0;
-
-            // D. Tentukan Target Ideal
-            $target_ideal = 25; // Default S1/D4
-            if (strpos($jenjang, 'D3') !== false || strpos($jenjang, 'DIII') !== false) {
-                $target_ideal = 33;
-            } elseif (strpos($jenjang, 'S2') !== false) {
-                $target_ideal = 50;
-            } elseif (strpos($jenjang, 'S3') !== false) {
-                $target_ideal = 33; // Asumsi S3 sama dgn D3 (Expert) atau custom
-            }
-
-            // E. Hitung Capaian
-            $capaian = ($target_ideal > 0) ? ($realisasi / $target_ideal) * 100 : 0;
-
-            $sum_capaian += $capaian;
-            $count_cohort++;
-        }
-
-        // Rata-rata Capaian (Agregat PT)
-        $avg_capaian = ($count_cohort > 0) ? ($sum_capaian / $count_cohort) : 0;
-
-        $data = [
-            'title' => 'Dashboard IKU 1 (Angka Efisiensi Edukasi)',
-            'page' => 'iku',
-            'triwulan_info' => $active_triwulan,
-
-            // Cards Data
-            'total_lulusan' => $total_lulusan,
-            'total_tepat' => $total_tepat,
-            'total_terlambat' => $total_terlambat,
-            'avg_capaian' => number_format($avg_capaian, 2),
-
-            // Chart Data
-            'chart_label' => ['Tepat Waktu', 'Terlambat'],
-            'chart_value' => [$total_tepat, $total_terlambat],
-
-            // Table Data
-            'lulusan_list' => $data_lulusan
-        ];
-
-        return view('admin/iku1/dashboard_iku1', $data);
+        // Redirect to new Detail View (AdminController::ikuDetail via route)
+        // Or redirect back to main IKU page
+        return redirect()->to(base_url('admin/iku'));
     }
 
 
@@ -205,8 +88,6 @@ class Iku1Controller extends BaseController
 
     public function store()
     {
-        // Validasi, exclude nama/prodi required checks IF data found? 
-        // No, inputs should always be filled (either auto or manual).
         $rules = [
             'id_triwulan' => 'required',
             'nim' => 'required',
@@ -231,60 +112,77 @@ class Iku1Controller extends BaseController
         $iku1Model = new Iku1Model();
         $prodiModel = new ProdiModel();
 
-        // 1. Cek User Existing
+        // 1. Validasi Duplikat (NIM + Triwulan)
+        $existingIku1 = $iku1Model->where('nim', $nim)
+            ->where('id_triwulan', $id_triwulan)
+            ->first();
+        if ($existingIku1) {
+            return redirect()->back()->withInput()->with('error', "Data mahasiswa dengan NIM $nim sudah ada di triwulan ini.");
+        }
+
+        // 2. Cek/Update Master Mahasiswa
         $existingMhs = $mahasiswaModel->where('nim', $nim)->first();
 
         if (!$existingMhs) {
-            // DATA BARU: Insert ke Master Mahasiswa
-            // Ambil data tambahan
-            $nikData = $this->request->getPost('nik');
-            $noHpData = $this->request->getPost('no_hp');
-            $emailData = $this->request->getPost('email');
-            $jkData = $this->request->getPost('jenis_kelamin');
-            $smtData = $this->request->getPost('semester_masuk');
-
-            // Validasi manual sederhana utk field wajib data baru (jika lolos frontend)
-            // Bisa tambahkan $this->validate() rules lagi disini jika strict backend validation diperlukan.
-
+            // DATA BARU: Insert
             $mahasiswaModel->insert([
                 'nim' => $nim,
                 'nama_lengkap' => $nama,
                 'kode_prodi' => $kode_prodi,
                 'tahun_masuk' => $tahun_masuk,
-                'status' => 'Lulus', // Default assumption
-                // Field Baru
-                'nik' => $nikData,
-                'no_hp' => $noHpData,
-                'email' => $emailData,
-                'jenis_kelamin' => $jkData,
-                'semester_masuk' => $smtData
+                'tanggal_yudisium' => $tanggal_yudisium, // Simpan tgl yudisium
+                'status' => 'Lulus',
+                'nik' => $this->request->getPost('nik'),
+                'no_hp' => $this->request->getPost('no_hp'),
+                'email' => $this->request->getPost('email'),
+                'jenis_kelamin' => $this->request->getPost('jenis_kelamin'),
+                'semester_masuk' => $this->request->getPost('semester_masuk')
             ]);
         } else {
-            // DATA LAMA: Abaikan update master
+            // DATA LAMA: Update Tanggal Yudisium jika belum ada atau berbeda
+            if (empty($existingMhs['tanggal_yudisium']) || $existingMhs['tanggal_yudisium'] != $tanggal_yudisium) {
+                $mahasiswaModel->update($existingMhs['id'], [
+                    'tanggal_yudisium' => $tanggal_yudisium,
+                    'status' => 'Lulus'
+                ]);
+            }
         }
 
-        // 2. Ambil Jenjang Prodi untuk hitung standar kelulusan
+        // 3. Ambil Jenjang Prodi
         $prodiData = $prodiModel->where('kode_prodi', $kode_prodi)->first();
         if (!$prodiData) {
             return redirect()->back()->withInput()->with('error', 'Kode Prodi tidak valid.');
         }
         $jenjang = $prodiData['jenjang'];
 
-        // 3. Hitung Lama Studi (Tahun) & Masa Studi (Bulan)
-        // Logika sederhana user: Tahun Yudisium - Tahun Masuk
-        $tahun_yudisium = date('Y', strtotime($tanggal_yudisium));
-        $lama_studi_tahun = (int) $tahun_yudisium - (int) $tahun_masuk;
-        $masa_studi_bulan = $lama_studi_tahun * 12; // Konversi kasar
+        // 4. Hitung Masa Studi (Bulan)
+        // Asumsi mulai kuliah: 1 September tahun masuk
+        $masa_studi_bulan = 0;
+        try {
+            $tgl_masuk = new \DateTime($tahun_masuk . '-09-01');
+            $tgl_lulus = new \DateTime($tanggal_yudisium);
 
-        // 4. Tentukan Status Kelulusan
-        $max_tahun = 4; // Default S1/D4
-        if ($jenjang === 'DIII') {
-            $max_tahun = 3;
+            // Hitung selisih
+            $diff = $tgl_masuk->diff($tgl_lulus);
+            $masa_studi_bulan = ($diff->y * 12) + $diff->m;
+
+            // Masa studi tidak boleh negatif
+            if ($masa_studi_bulan < 0)
+                $masa_studi_bulan = 0;
+        } catch (\Exception $e) {
+            $masa_studi_bulan = 0;
         }
 
-        $status_kelulusan = ($lama_studi_tahun <= $max_tahun) ? 'Tepat Waktu' : 'Terlambat';
+        // 5. Tentukan Status Kelulusan (Standard IKU)
+        // D3: Tepat waktu jika <= 3.5 tahun (42 bulan)
+        // D4/S1: Tepat waktu jika <= 4.5 tahun (54 bulan)
+        // S2: Tepat waktu jika <= 2.5 tahun (30 bulan) - asumsi
+        $is_d3 = (strpos($jenjang, 'D3') !== false || strpos($jenjang, 'DIII') !== false);
 
-        // 5. Simpan Transaksi IKU 1
+        $threshold_bulan = $is_d3 ? 42 : 54; // Default D4/S1
+        $status_kelulusan = ($masa_studi_bulan <= $threshold_bulan) ? 'Tepat Waktu' : 'Terlambat';
+
+        // 6. Simpan Transaksi IKU 1
         $insertData = [
             'nim' => $nim,
             'id_triwulan' => $id_triwulan,
@@ -294,8 +192,9 @@ class Iku1Controller extends BaseController
         ];
 
         if ($iku1Model->insert($insertData)) {
+            $formatted_masa = floor($masa_studi_bulan / 12) . " Tahun " . ($masa_studi_bulan % 12) . " Bulan";
             return redirect()->to('admin/iku1/input')
-                ->with('success', "Data berhasil disimpan for NIM: $nim. Status: $status_kelulusan");
+                ->with('success', "Data berhasil disimpan. Masa Studi: $formatted_masa ($status_kelulusan)");
         } else {
             return redirect()->back()->withInput()->with('error', 'Gagal menyimpan data ke database.');
         }
@@ -330,7 +229,7 @@ class Iku1Controller extends BaseController
             'data_edit' => $data_edit,
             'selected_kode_prodi' => $data_edit['kode_prodi'],
             'redirect_to' => $redirect_to,
-            'back_url' => $redirect_to ? urldecode($redirect_to) : base_url('admin/iku1/dashboard')
+            'back_url' => $redirect_to ? urldecode($redirect_to) : base_url('admin/iku')
         ];
 
         return view('admin/iku1/form_tambah', $data);
@@ -403,7 +302,7 @@ class Iku1Controller extends BaseController
             if ($redirect_to) {
                 return redirect()->to(urldecode($redirect_to))->with('success', 'Data berhasil diperbarui.');
             }
-            return redirect()->to('admin/iku1/dashboard')->with('success', 'Data berhasil diperbarui.');
+            return redirect()->to('admin/iku')->with('success', 'Data berhasil diperbarui.');
         } else {
             return redirect()->back()->withInput()->with('error', 'Gagal update data IKU.');
         }
@@ -426,10 +325,40 @@ class Iku1Controller extends BaseController
             if ($redirect_to) {
                 return redirect()->to(urldecode($redirect_to))->with('success', 'Data berhasil dihapus.');
             }
-            return redirect()->to('admin/iku1/dashboard')->with('success', 'Data berhasil dihapus.');
+            return redirect()->to('admin/iku')->with('success', 'Data berhasil dihapus.');
         } else {
             return redirect()->back()->with('error', 'Gagal menghapus data.');
         }
     }
 
+    public function bulk_delete()
+    {
+        $iku1Model = new Iku1Model();
+        $json = $this->request->getJSON();
+        $ids = $json->ids ?? [];
+
+        if (empty($ids)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Tidak ada data yang dipilih']);
+        }
+
+        // Use whereIn for batch delete - safer and faster
+        // Also checks if ID matches primary key correctly
+        $iku1Model->whereIn('id', $ids)->delete();
+
+        $deleted = $iku1Model->db->affectedRows();
+
+        if ($deleted > 0) {
+            return $this->response->setJSON([
+                'success' => true,
+                'message' => "$deleted data berhasil dihapus",
+                'deleted_count' => $deleted
+            ]);
+        } else {
+            return $this->response->setJSON([
+                'success' => false, // Changed to false if 0 deleted
+                'message' => "Gagal menghapus data atau data sudah terhapus.",
+                'deleted_count' => 0
+            ]);
+        }
+    }
 }

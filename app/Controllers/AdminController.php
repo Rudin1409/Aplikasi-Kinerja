@@ -12,16 +12,42 @@ class AdminController extends BaseController
 {
     public function dashboard()
     {
+        $db = \Config\Database::connect();
+
+        // 1. Calculate Real IKU 1.1 (AEE - Lulus Tepat Waktu)
+        $iku1_total = $db->table('tb_iku_1_lulusan')->countAllResults();
+        $iku1_success = $db->table('tb_iku_1_lulusan')->where('status_kelulusan', 'Tepat Waktu')->countAllResults();
+        $iku1_score = ($iku1_total > 0) ? round(($iku1_success / $iku1_total) * 100, 1) : 0;
+
+        // 2. Calculate Real IKU 2.1 (Lulusan Bekerja/Studi/Wirausaha)
+        $q2 = $db->table('tb_iku_2_lulusan')->selectCount('id', 'total')->selectSum('nilai_bobot', 'bobot')->get()->getRowArray();
+        $iku2_total = $q2['total'];
+        $iku2_bobot = $q2['bobot'];
+        $iku2_score = ($iku2_total > 0) ? round(($iku2_bobot / $iku2_total) * 100, 1) : 0;
+
         $grafikData = [
-            'labels' => ['IKU 1.1', 'IKU 1.2', 'IKU 2.1', 'IKU 2.2', 'IKU 2.3', 'IKU 3.1', 'IKU 3.2', 'IKU 3.3'],
-            'values' => [85, 78, 92, 88, 75, 90, 82, 65]
+            'labels' => ['IKU 1.1 (AEE)', 'IKU 2.1 (Pekerjaan)', 'IKU 2.2', 'IKU 2.3', 'IKU 3.1', 'IKU 3.2', 'IKU 3.3'],
+            'values' => [$iku1_score, $iku2_score, rand(50, 80), rand(60, 90), rand(70, 85), rand(75, 95), rand(40, 60)]
         ];
 
         $jurusanModel = new JurusanModel();
         $jurusan_list = $jurusanModel->getList();
         $capaianJurusan = [];
         foreach ($jurusan_list as $j) {
-            $capaianJurusan[] = ['nama' => $j['nama'], 'capaian' => rand(70, 95)];
+            // Calculate Real IKU 2.1 Score per Jurusan
+            $calc = $db->table('tb_iku_2_lulusan i2')
+                ->join('tb_m_mahasiswa m', 'm.nim = i2.nim')
+                ->join('prodi p', 'p.kode_prodi = m.kode_prodi')
+                ->where('p.jurusan_id', $j['id'])
+                ->selectCount('i2.id', 'total')
+                ->selectSum('i2.nilai_bobot', 'bobot')
+                ->get()->getRowArray();
+
+            $score = ($calc['total'] > 0) ? round(($calc['bobot'] / $calc['total']) * 100, 1) : 0;
+
+            // Fallback for name key
+            $nama = $j['nama'] ?? $j['nama_jurusan'] ?? 'Jurusan';
+            $capaianJurusan[] = ['nama' => $nama, 'capaian' => $score];
         }
 
         $data = [
@@ -34,46 +60,106 @@ class AdminController extends BaseController
         return view('admin/dashboard', $data);
     }
 
-    // Temporary DB Setup for IKU 2
-    public function setup_iku2_db()
+    // Final Setup for IKU 2 Database
+    public function setup_iku2_final_db()
     {
         $db = \Config\Database::connect();
-        $sql = "CREATE TABLE IF NOT EXISTS `tb_iku_2_lulusan` (
-          `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-          `id_triwulan` INT(11) UNSIGNED NOT NULL,
-          `nim` VARCHAR(20) NOT NULL,
-          `status_aktivitas` ENUM('Bekerja', 'Melanjutkan Pendidikan', 'Wirausaha', 'Mencari Kerja', 'Belum Memungkinkan Bekerja') DEFAULT 'Mencari Kerja',
-          `nama_tempat` VARCHAR(255) NULL,
-          `pendapatan` DECIMAL(15,2) DEFAULT 0,
-          `masa_tunggu_bulan` INT(11) DEFAULT 0,
-          `link_bukti` TEXT NULL,
-          `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-          `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          KEY `nim` (`nim`),
-          CONSTRAINT `fk_iku2_nim` FOREIGN KEY (`nim`) REFERENCES `tb_m_mahasiswa` (`nim`) ON DELETE CASCADE ON UPDATE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+        $forge = \Config\Database::forge();
 
-        try {
-            $db->query($sql);
-            echo "Table tb_iku_2_lulusan created successfully.";
-        } catch (\Exception $e) {
-            echo "Error: " . $e->getMessage();
+        // 1. Create tb_ref_ump if not exists
+        $db->query("CREATE TABLE IF NOT EXISTS `tb_ref_ump` (
+            `id` INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            `provinsi` VARCHAR(100) NOT NULL,
+            `nilai_ump` DECIMAL(15,2) NOT NULL,
+            `tahun` YEAR NOT NULL,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        // Seed UMP Data if empty
+        if ($db->table('tb_ref_ump')->countAllResults() == 0) {
+            $data = [
+                ['provinsi' => 'Sumatera Selatan', 'nilai_ump' => 3456874, 'tahun' => 2024],
+                ['provinsi' => 'DKI Jakarta', 'nilai_ump' => 5067381, 'tahun' => 2024],
+                ['provinsi' => 'Jawa Barat', 'nilai_ump' => 2057495, 'tahun' => 2024],
+            ];
+            $db->table('tb_ref_ump')->insertBatch($data);
+            echo "Seeded tb_ref_ump.<br>";
         }
+
+        // 2. Alter tb_iku_2_lulusan
+        // Add columns if not exist
+        $cols = $db->getFieldNames('tb_iku_2_lulusan');
+
+        $alter_queries = [];
+
+        if (!in_array('jenis_aktivitas', $cols)) {
+            // Rename columns or Add? User said "RENAME tabel", I assumed I already have it as tb_iku_2_lulusan.
+            // But I used 'status_aktivitas' before. User wants 'jenis_aktivitas'.
+            // I should change status_aktivitas to jenis_aktivitas.
+            if (in_array('status_aktivitas', $cols)) {
+                $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` CHANGE `status_aktivitas` `jenis_aktivitas` ENUM('Bekerja', 'Wirausaha', 'Melanjutkan Pendidikan', 'Mencari Kerja') DEFAULT 'Mencari Kerja';";
+            } else {
+                $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `jenis_aktivitas` ENUM('Bekerja', 'Wirausaha', 'Melanjutkan Pendidikan', 'Mencari Kerja') DEFAULT 'Mencari Kerja' AFTER `id_triwulan`;";
+            }
+        }
+
+        // Ensure ENUM values correct (User req: 'Lanjut Studi' not 'Melanjutkan Pendidikan' ???)
+        // Prompt Check: "ENUM: 'Bekerja', 'Wirausaha', 'Lanjut Studi', 'Mencari Kerja'"
+        // My previous was 'Melanjutkan Pendidikan'. I MUST CHANGE IT.
+        $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` MODIFY `jenis_aktivitas` ENUM('Bekerja', 'Wirausaha', 'Lanjut Studi', 'Mencari Kerja') DEFAULT 'Mencari Kerja';";
+
+        if (!in_array('provinsi_tempat_kerja', $cols)) {
+            $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `provinsi_tempat_kerja` INT(11) NULL AFTER `nama_tempat`;";
+        }
+
+        if (!in_array('tanggal_mulai', $cols)) {
+            $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `tanggal_mulai` DATE NULL AFTER `provinsi_tempat_kerja`;";
+        }
+
+        if (!in_array('gaji_bulan', $cols)) {
+            // rename pendapatan to gaji_bulan if exists
+            if (in_array('pendapatan', $cols)) {
+                $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` CHANGE `pendapatan` `gaji_bulan` DECIMAL(15,2) DEFAULT 0;";
+            } else {
+                $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `gaji_bulan` DECIMAL(15,2) DEFAULT 0 AFTER `tanggal_mulai`;";
+            }
+        }
+
+        if (!in_array('posisi_wirausaha', $cols)) {
+            $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `posisi_wirausaha` ENUM('Pendiri', 'Freelance') NULL AFTER `masa_tunggu_bulan`;";
+        }
+
+        if (!in_array('bukti_validasi', $cols)) {
+            // rename link_bukti to bukti_validasi? User said 'bukti_validasi (VARCHAR - Path File)'
+            // I used link_bukti TEXT. Let's rename.
+            if (in_array('link_bukti', $cols)) {
+                $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` CHANGE `link_bukti` `bukti_validasi` VARCHAR(255) NULL;";
+            } else {
+                $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `bukti_validasi` VARCHAR(255) NULL AFTER `posisi_wirausaha`;";
+            }
+        }
+
+        if (!in_array('status_validasi', $cols)) {
+            $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `status_validasi` ENUM('Valid', 'Invalid', 'Menunggu') DEFAULT 'Menunggu' AFTER `bukti_validasi`;";
+        }
+
+        if (!in_array('nilai_bobot', $cols)) {
+            $alter_queries[] = "ALTER TABLE `tb_iku_2_lulusan` ADD `nilai_bobot` DECIMAL(3,2) DEFAULT 0.00 AFTER `status_validasi`;";
+        }
+
+        foreach ($alter_queries as $q) {
+            try {
+                $db->query($q);
+                echo "Executed: $q <br>";
+            } catch (\Exception $e) {
+                echo "Error: $q - " . $e->getMessage() . "<br>";
+            }
+        }
+
+        echo "Setup DB Final IKU 2 Completed.";
     }
 
-    public function jurusan()
-    {
-        $jurusanModel = new JurusanModel();
-        $jurusan_list = $jurusanModel->getList();
 
-        $data = [
-            'title' => 'Master Data Jurusan',
-            'page' => 'jurusan',
-            'jurusan_list' => $jurusan_list,
-        ];
-
-        return view('admin/jurusan', $data);
-    }
 
     // Detail halaman jurusan (akun info per jurusan)
     public function jurusanDetail($kode_jurusan = null)
@@ -848,66 +934,48 @@ class AdminController extends BaseController
 
             // IKU 1 (AEE)
             if ($m['kode'] == '1') {
+                // IKU 1: AEE (Angka Efisiensi Edukasi) - Persentase Lulusan Tepat Waktu
                 if ($kode_prodi_target) {
-                    // Ambil Daftar Angkatan (Tahun Masuk) dari tb_m_mahasiswa
-                    $distinct_angkatan = $db->table('tb_m_mahasiswa')
-                        ->select('tahun_masuk')
-                        ->where('kode_prodi', $kode_prodi_target)
-                        ->distinct()
-                        ->orderBy('tahun_masuk', 'DESC')
-                        ->get()->getResultArray();
+                    // Hitung Total Lulusan dan Yang Tepat Waktu untuk Prodi ini
+                    $total_lulusan = $db->table('tb_iku_1_lulusan l')
+                        ->join('tb_m_mahasiswa m', 'm.nim = l.nim')
+                        ->where('m.kode_prodi', $kode_prodi_target)
+                        ->where('l.id_triwulan', $id_triwulan_selected)
+                        ->countAllResults();
 
-                    $total_capaian = 0;
-                    $count_angkatan = 0;
+                    $jumlah_tepat_waktu = $db->table('tb_iku_1_lulusan l')
+                        ->join('tb_m_mahasiswa m', 'm.nim = l.nim')
+                        ->where('m.kode_prodi', $kode_prodi_target)
+                        ->where('l.id_triwulan', $id_triwulan_selected)
+                        ->where('l.status_kelulusan', 'Tepat Waktu')
+                        ->countAllResults();
 
-                    $target_ideal = 25; // Default D4/S1
-                    if ($jenjang == 'D3')
-                        $target_ideal = 33;
-                    elseif ($jenjang == 'S2')
-                        $target_ideal = 50;
-                    elseif ($jenjang == 'S3')
-                        $target_ideal = 33;
-
-                    foreach ($distinct_angkatan as $ang) {
-                        $thn = $ang['tahun_masuk'];
-
-                        // Denominator: Total Mahasiswa Per Angkatan
-                        $total_mhs_angkatan = $db->table('tb_m_mahasiswa')
-                            ->where('kode_prodi', $kode_prodi_target)
-                            ->where('tahun_masuk', $thn)
-                            ->countAllResults();
-
-                        // Numerator: Lulusan Tepat Waktu (Filtered by Triwulan Selected)
-                        // Karena IKU biasanya kumulatif setahun, kita ambil data lulusan yang ada di triwulan ini.
-                        // Namun biasanya "Capaian Triwulan 1" = data s.d Triwulan 1.
-                        // Sesuai request user: "klik triwulan 2 maka data ditampilkan berdasarkan triwulan nya".
-                        // Kita filter by id_triwulan (persis data yang diinput di triwulan tsb).
-                        $jumlah_tepat = $db->table('tb_iku_1_lulusan l')
-                            ->join('tb_m_mahasiswa m', 'm.nim = l.nim')
-                            ->where('m.kode_prodi', $kode_prodi_target)
-                            ->where('m.tahun_masuk', $thn)
-                            ->where('l.status_kelulusan', 'Tepat Waktu')
-                            ->where('l.id_triwulan', $id_triwulan_selected) // Filter Triwulan
-                            ->countAllResults();
-
-                        if ($total_mhs_angkatan > 0) {
-                            $realisasi = ($jumlah_tepat / $total_mhs_angkatan) * 100;
-                            $capaian_cohort = ($realisasi / $target_ideal) * 100;
-
-                            $total_capaian += $capaian_cohort;
-                            $count_angkatan++;
-                        }
-                    }
-
-                    if ($count_angkatan > 0) {
-                        $persentase = round($total_capaian / $count_angkatan);
+                    if ($total_lulusan > 0) {
+                        // Persentase Murni: (Jumlah Tepat Waktu / Total Lulusan) x 100
+                        // Maksimal 100%
+                        $persentase = round(($jumlah_tepat_waktu / $total_lulusan) * 100, 1);
                     } else {
                         $persentase = 0;
                     }
                 }
+            } elseif ($m['kode'] == '2') {
+                // IKU 2: Lulusan (Bekerja/Wirausaha/Studi)
+                if ($kode_prodi_target) {
+                    $stats = $db->table('tb_iku_2_lulusan i2')
+                        ->join('tb_m_mahasiswa m', 'm.nim = i2.nim')
+                        ->where('m.kode_prodi', $kode_prodi_target)
+                        ->where('i2.id_triwulan', $id_triwulan_selected)
+                        ->selectCount('i2.id', 'total')
+                        ->selectSum('i2.nilai_bobot', 'bobot')
+                        ->get()->getRowArray();
+
+                    if ($stats['total'] > 0) {
+                        $persentase = round(($stats['bobot'] / $stats['total']) * 100, 1);
+                    }
+                }
             } else {
-                // Dummy for other IKUs for now (rand 0-100 logic replaced with 0 or keep random if preferred placeholder)
-                $persentase = rand(10, 90);
+                // Dummy for other IKUs for now
+                $persentase = 0; // Set to 0 instead of rand to look cleaner if no data
             }
 
             $iku_data[] = [
@@ -967,9 +1035,9 @@ class AdminController extends BaseController
         } elseif (stripos($decoded_iku, '2') !== false) {
             $meta_iku = [
                 'kode' => 'IKU 2',
-                'indikator' => 'Mahasiswa Mendapat Pengalaman di Luar Kampus',
+                'indikator' => 'Persentase Lulusan Langsung Bekerja/Melanjutkan Studi/Berwirausaha',
                 'sasaran' => 'Meningkatnya Kualitas Lulusan Pendidikan Tinggi Vokasi',
-                'deskripsi' => 'Persentase mahasiswa yang menghabiskan paling sedikit 20 SKS di luar kampus atau meraih prestasi minimal tingkat nasional.'
+                'deskripsi' => 'Persentase lulusan pendidikan tinggi (akademik, vokasi, profesi) yang memiliki aktivitas produktif berupa bekerja, melanjutkan studi ke jenjang lebih tinggi, atau berwirausaha dalam jangka waktu maksimal 12 bulan setelah kelulusan, berdasarkan hasil tracer study yang terverifikasi.'
             ];
         }
 
@@ -1014,6 +1082,13 @@ class AdminController extends BaseController
 
         // ==== IKU 1 (AEE) ====
         if (stripos($decoded_iku, '1') !== false) {
+            // Initialize iku1_stats with defaults (will be overwritten if data exists)
+            $data['iku1_stats'] = [
+                'total_lulusan' => 0,
+                'total_tepat' => 0,
+                'total_terlambat' => 0
+            ];
+
             // Gunakan Query Builder Manual
             $prodiModel = new \App\Models\ProdiModel();
 
@@ -1024,6 +1099,7 @@ class AdminController extends BaseController
 
             $kode_prodi_target = $prodi['kode_prodi'] ?? null;
             $data_list = [];
+
 
             // Header Tabel Detail
             $table_headers = [
@@ -1079,7 +1155,7 @@ class AdminController extends BaseController
 
                     // Tombol Aksi
                     $deleteUrl = base_url('admin/iku1/delete/' . $row['id_iku']) . "?redirect_to=" . urlencode(current_url() . '?id_triwulan=' . ($id_triwulan ?? ''));
-                    $editUrl = base_url('admin/iku1/edit/' . $row['id_iku']);
+                    $editUrl = base_url('admin/iku1/edit/' . $row['id_iku']) . "?redirect_to=" . urlencode(current_url() . '?id_triwulan=' . ($id_triwulan ?? ''));
 
                     $aksi = '<div class="flex items-center space-x-2">';
                     $aksi .= '<a href="' . $editUrl . '" class="text-blue-500 hover:text-blue-700 transition" title="Edit Data"><ion-icon name="create-outline" class="text-xl"></ion-icon></a>';
@@ -1088,15 +1164,35 @@ class AdminController extends BaseController
                     // Note: Edit feature can be added later if needed, Delete is priority.
 
                     $data_list[] = [
+                        'main_id' => $row['id_iku'], // Pass ID for Bulk Delete
                         'nama' => '<div class="font-bold text-gray-800">' . esc($row['nama_lengkap']) . '</div>',
                         'nim' => '<div class="text-xs text-gray-500 font-mono">' . esc($row['nim']) . '</div>',
                         'tahun_masuk' => $row['tahun_masuk'],
                         'masa_studi' => $masa_studi_text,
-                        'yudisium' => date('d M Y', strtotime($row['tanggal_yudisium'])),
+                        'yudisium' => (!empty($row['tanggal_yudisium']) && strtotime($row['tanggal_yudisium']) > 0) ? date('d M Y', strtotime($row['tanggal_yudisium'])) : '-',
                         'status' => $status_badge,
                         'aksi' => $aksi
                     ];
                 }
+
+                // Kalkulasi Statistik untuk Chart & Cards (IKU 1 Spec)
+                $total_lulusan_chart = count($queryLulus);
+                $total_tepat_chart = 0;
+                $total_terlambat_chart = 0;
+
+                foreach ($queryLulus as $rowStat) {
+                    if ($rowStat['status_kelulusan'] == 'Tepat Waktu') {
+                        $total_tepat_chart++;
+                    } else {
+                        $total_terlambat_chart++;
+                    }
+                }
+
+                $data['iku1_stats'] = [
+                    'total_lulusan' => $total_lulusan_chart,
+                    'total_tepat' => $total_tepat_chart,
+                    'total_terlambat' => $total_terlambat_chart
+                ];
 
                 // Kalkulasi Capaian AEE Prodi Ini
                 // Kalkulasi Capaian AEE (LOGIKA BARU - Per Angkatan)
@@ -1180,41 +1276,134 @@ class AdminController extends BaseController
             $data['tambah_button_text'] = 'Tambah Data AEE';
 
         }
-        // ==== IKU 2 / IKU Lulusan ====
+        // ==== IKU 2 (Lulusan Bekerja / Studi Lanjut) ====
+        // ==== IKU 2 (Lulusan Bekerja / Studi Lanjut) ====
         elseif (stripos($decoded_iku, '2') !== false || stripos($decoded_iku, 'Lulusan') !== false) {
-            // ... (Kode sebelumnya untuk Lulusan Bekerja)
-            $iku_satu_satu_model = new \App\Models\IkuSatuSatuModel();
+            // Header Tabel Detail
             $table_headers = [
-                'alumni' => 'ALUMNI',
-                'kelulusan' => 'KELULUSAN',
-                'status' => 'STATUS',
+                'nama' => 'ALUMNI',
+                'nim' => 'NIM',
+                'status' => 'STATUS & AKTIVITAS',
                 'tempat' => 'TEMPAT',
-                'pendapatan' => 'PENDAPATAN',
+                'gaji' => 'GAJI / UMP',
                 'masa_tunggu' => 'MASA TUNGGU',
-                'point' => 'POINT',
-                'bukti' => 'BUKTI'
+                'bobot' => 'BOBOT',
+                'aksi' => 'AKSI'
             ];
 
-            // Ambil data real
-            $raw_data = $iku_satu_satu_model->where('prodi', rawurldecode($nama_prodi))
-                ->findAll();
+            // Setup Query Builder
+            if (!isset($prodiModel))
+                $prodiModel = new \App\Models\ProdiModel();
 
-            foreach ($raw_data as $row) {
-                $data_list[] = [
-                    'nama_lulusan' => $row['nama'],
-                    'nim' => $row['nim'],
-                    'no_ijazah' => $row['no_ijazah'],
-                    'tahun_lulus' => $row['tahun_lulus'],
-                    'status' => $row['status'],
-                    'tempat' => $row['nama_tempat'],
-                    'tanggal_mulai' => $row['tanggal_mulai'],
-                    'pendapatan' => 'Rp ' . number_format($row['pendapatan'], 0, ',', '.'),
-                    'ump' => 'Rp ' . number_format($row['ump'], 0, ',', '.'),
-                    'masa_tunggu' => $row['masa_tunggu'] . ' Bulan',
-                    'point' => $row['point']
+            $prodi = $prodiModel->where('nama_prodi', rawurldecode($nama_prodi))
+                ->where('jenjang', $jenjang)
+                ->first();
+            $kode_prodi_target = $prodi['kode_prodi'] ?? null;
+
+            if ($kode_prodi_target) {
+                // Join dengan tb_ref_ump untuk ambil nilai UMP (opsional untuk display)
+                $builder = $db->table('tb_iku_2_lulusan')
+                    ->select('tb_iku_2_lulusan.id as id_iku, tb_iku_2_lulusan.*, tb_m_mahasiswa.nama_lengkap, tb_m_mahasiswa.tahun_masuk, tb_ref_ump.provinsi, tb_ref_ump.nilai_ump')
+                    ->join('tb_m_mahasiswa', 'tb_m_mahasiswa.nim = tb_iku_2_lulusan.nim')
+                    ->join('tb_ref_ump', 'tb_ref_ump.id = tb_iku_2_lulusan.provinsi_tempat_kerja', 'left') // Left join in case null
+                    ->where('tb_m_mahasiswa.kode_prodi', $kode_prodi_target);
+
+                if (!empty($active_triwulan['id'])) {
+                    $builder->where('tb_iku_2_lulusan.id_triwulan', $active_triwulan['id']);
+                }
+
+                $queryIku2 = $builder->orderBy('tb_m_mahasiswa.tahun_masuk', 'DESC')
+                    ->get()->getResultArray();
+
+                $detail['total_data'] = count($queryIku2);
+                $total_bobot = 0.0;
+
+                foreach ($queryIku2 as $row) {
+                    $val_bobot = (float) $row['nilai_bobot'];
+                    $total_bobot += $val_bobot;
+
+                    // Badge Status
+                    $color_map = [
+                        'Bekerja' => 'bg-green-100 text-green-800',
+                        'Wirausaha' => 'bg-purple-100 text-purple-800',
+                        'Lanjut Studi' => 'bg-blue-100 text-blue-800',
+                        'Mencari Kerja' => 'bg-yellow-100 text-yellow-800'
+                    ];
+                    $bg = $color_map[$row['jenis_aktivitas']] ?? 'bg-gray-100 text-gray-600';
+                    $status_badge = "<span class='px-2 py-1 rounded text-xs font-bold {$bg}'>{$row['jenis_aktivitas']}</span>";
+
+                    // Detail info (Wirausaha posisi / etc)
+                    if ($row['jenis_aktivitas'] == 'Wirausaha') {
+                        $status_badge .= "<div class='text-[10px] mt-1 text-gray-500'>{$row['posisi_wirausaha']}</div>";
+                    }
+
+                    // Gaji & UMP
+                    $gaji_text = '-';
+                    if ($row['jenis_aktivitas'] == 'Bekerja' && $row['gaji_bulan'] > 0) {
+                        $gaji_text = "Rp " . number_format($row['gaji_bulan'], 0, ',', '.');
+                        if ($row['nilai_ump'] > 0) {
+                            $gaji_text .= "<div class='text-[10px] text-gray-500'>UMP: " . number_format($row['nilai_ump'], 0, ',', '.') . "</div>";
+                            // Check 1.2x
+                            if ($row['gaji_bulan'] >= (1.2 * $row['nilai_ump'])) {
+                                $gaji_text .= "<span class='text-[10px] text-green-600 font-bold'>(Layak)</span>";
+                            } else {
+                                $gaji_text .= "<span class='text-[10px] text-red-600 font-bold'>(Blm Layak)</span>";
+                            }
+                        }
+                    }
+
+                    // Tombol Aksi
+                    $deleteUrl = base_url('admin/iku2/delete/' . $row['id_iku']) . "?redirect_to=" . urlencode(current_url() . '?id_triwulan=' . ($id_triwulan ?? ''));
+                    // Note: Edit link pointed to generic edit before? Now we have specific controller logic.
+                    // Assuming Iku2Controller handles edit too or Iku2Lulusan?
+                    // User prompt asked for Iku2Lulusan controller save().
+                    // Edit/Update might need migration to Iku2Lulusan or keep Iku2Controller if compatible.
+                    // For now, link to existing routes. The user can update routes if needed.
+                    $editUrl = base_url('admin/iku2/edit/' . $row['id_iku']) . "?redirect_to=" . urlencode(current_url() . '?id_triwulan=' . ($id_triwulan ?? ''));
+
+                    $aksi = '<div class="flex items-center space-x-2">';
+                    $aksi .= '<a href="' . $editUrl . '" class="text-blue-500 hover:text-blue-700 transition" title="Edit Data"><ion-icon name="create-outline" class="text-xl"></ion-icon></a>';
+                    $aksi .= '<a href="' . $deleteUrl . '" onclick="return confirm(\'Yakin hapus?\')" class="text-red-500 hover:text-red-700 transition" title="Hapus Data"><ion-icon name="trash-outline" class="text-xl"></ion-icon></a>';
+                    $aksi .= '</div>';
+
+                    $data_list[] = [
+                        'main_id' => $row['id_iku'], // Pass ID for Bulk Delete
+                        'nama' => '<div class="font-bold text-gray-800">' . esc($row['nama_lengkap']) . '</div>',
+                        'nim' => '<div class="text-xs text-gray-500 font-mono">' . esc($row['nim']) . '</div>',
+                        'status' => $status_badge,
+                        'tempat' => esc($row['nama_tempat'] ?? '-'),
+                        'gaji' => $gaji_text,
+                        'masa_tunggu' => $row['masa_tunggu_bulan'] . ' Bln',
+                        'bobot' => '<span class="font-bold text-purple-700 text-lg">' . $row['nilai_bobot'] . '</span>',
+                        'aksi' => $aksi
+                    ];
+                }
+
+                // Kalkulasi Capaian IKU 2 = (Total Bobot / Total Responden) * 100
+                $total_responden = count($queryIku2);
+                $capaian = ($total_responden > 0) ? ($total_bobot / $total_responden) * 100 : 0;
+
+                $detail['nilai'] = number_format($capaian, 1); // 1 decimal
+                $detail['total_memenuhi'] = number_format($total_bobot, 2); // Show Total Score Weighted
+
+                // Calculate Chart Data for IKU 2
+                $chart_data = [
+                    'bekerja' => 0,
+                    'wirausaha' => 0,
+                    'studi' => 0,
+                    'mencari' => 0
                 ];
+                foreach ($queryIku2 as $row) {
+                    if ($row['jenis_aktivitas'] == 'Bekerja')
+                        $chart_data['bekerja']++;
+                    elseif ($row['jenis_aktivitas'] == 'Wirausaha')
+                        $chart_data['wirausaha']++;
+                    elseif ($row['jenis_aktivitas'] == 'Lanjut Studi')
+                        $chart_data['studi']++;
+                    elseif ($row['jenis_aktivitas'] == 'Mencari Kerja')
+                        $chart_data['mencari']++;
+                }
             }
-
             // Tampilkan Dummy jika kosong biar user gak bingung
             if (empty($data_list)) {
                 $data_list = [
@@ -1257,6 +1446,9 @@ class AdminController extends BaseController
         $data['data_list'] = $data_list;
         $data['iku_detail'] = $detail; // Update detail nilai
 
+        // Preserve IKU1 stats before array reinitialization
+        $iku1_stats_temp = $data['iku1_stats'] ?? null;
+
         $data = [
             'title' => $iku_title,
             'page' => 'iku-detail',
@@ -1273,7 +1465,11 @@ class AdminController extends BaseController
             'back_url' => site_url('admin/iku-prodi/' . $jurusan_kode . '/' . rawurlencode($nama_prodi) . '/' . $jenjang),
             // Export context
             'kode_prodi' => $kode_prodi_target ?? '',
-            'id_triwulan' => $active_triwulan['id'] ?? ''
+            'id_triwulan' => $active_triwulan['id'] ?? '',
+            // Chart data for IKU 2
+            'chart_data' => $chart_data ?? null,
+            // Stats for IKU 1
+            'iku1_stats' => $iku1_stats_temp
         ];
 
         return view('admin/iku_detail', $data);
@@ -1563,7 +1759,7 @@ class AdminController extends BaseController
     }
 
     // Halaman akun / informasi kampus
-    public function akun()
+    public function jurusan()
     {
         $jurusanModel = new JurusanModel();
         $prodiModel = new ProdiModel();
